@@ -61,8 +61,8 @@ const HexagonGrid: React.FC<HexagonGridProps> = ({
   const getDefaultHexColor = (_x: number, _y: number, space?: any, isReserved?: boolean) => {
     if (!space) return '#f9fafb'; // Empty space - light gray
     
-    // Invalid spaces appear invisible (same as background)
-    if (space.type === 'invalid_space') return '#f3f4f6';
+    // Invalid spaces appear as dark blocks
+    if (space.type === 'invalid_space') return '#374151'; // Dark gray - matches dark mode
     
     if (isReserved) return '#ef4444'; // Reserved - red
     
@@ -123,7 +123,7 @@ const HexagonGrid: React.FC<HexagonGridProps> = ({
               onDoubleClick={() => onHexDoubleClick?.(col, row, space)}
               onContextMenu={(e) => onHexRightClick?.(e, col, row, space)}
             >
-              {space && (
+              {space && space.type !== 'invalid_space' && (
                 <span className="text-white text-xs font-bold drop-shadow">
                   {space.name.charAt(0)}
                 </span>

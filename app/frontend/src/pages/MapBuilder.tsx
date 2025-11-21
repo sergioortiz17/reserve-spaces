@@ -182,7 +182,7 @@ const MapBuilder: React.FC = () => {
       case 'workstation': return '#3b82f6'; // Blue
       case 'meeting_room': return '#10b981'; // Green
       case 'cubicle': return '#8b5cf6'; // Purple
-      case 'invalid_space': return '#f3f4f6'; // Same as background - appears invisible
+      case 'invalid_space': return '#374151'; // Dark gray - matches dark mode background
       default: return '#6b7280'; // Gray
     }
   };
@@ -591,7 +591,7 @@ const MapBuilder: React.FC = () => {
             <svg width="16" height="14" className="mr-2">
               <polygon 
                 points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
-                fill="#f3f4f6" 
+                fill="#374151" 
                 stroke="#d1d5db" 
                 strokeWidth="0.5"
               />

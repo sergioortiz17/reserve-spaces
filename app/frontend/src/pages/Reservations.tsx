@@ -135,8 +135,8 @@ const Reservations: React.FC = () => {
   const getHexColor = (_x: number, _y: number, space?: any, isReserved?: boolean) => {
     if (!space) return '#f9fafb'; // Empty space - light gray
     
-    // Invalid spaces are never reservable and appear invisible
-    if (space.type === 'invalid_space') return '#f3f4f6'; // Same as background
+    // Invalid spaces are never reservable and appear as dark blocks
+    if (space.type === 'invalid_space') return '#374151'; // Dark gray - matches dark mode
     
     if (isReserved) return '#ef4444'; // Reserved - red
     
@@ -327,7 +327,7 @@ const Reservations: React.FC = () => {
               <svg width="16" height="14" className="mr-2">
                 <polygon 
                   points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
-                  fill="#f3f4f6" 
+                  fill="#374151" 
                   stroke="#d1d5db" 
                   strokeWidth="0.5"
                 />
