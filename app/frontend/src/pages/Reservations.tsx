@@ -150,15 +150,6 @@ const Reservations: React.FC = () => {
     }
   };
 
-  const getSpaceColor = (type: string) => {
-    switch (type) {
-      case 'workstation': return 'bg-blue-500';
-      case 'meeting_room': return 'bg-green-500';
-      case 'cubicle': return 'bg-purple-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
   const isSpaceReserved = (spaceId: string) => {
     return reservations.some(reservation => {
       // Convert ISO date to YYYY-MM-DD format for comparison
@@ -296,7 +287,11 @@ const Reservations: React.FC = () => {
     );
   };
 
-  const todayReservations = reservations.filter(r => r.date === selectedDate);
+  // Filter reservations for the selected date (handle ISO date format)
+  const todayReservations = reservations.filter(r => {
+    const reservationDate = r.date.split('T')[0]; // Extract date part from ISO string
+    return reservationDate === selectedDate && r.status === 'active';
+  });
   
   // Calculate correct space counts (meeting room groups count as 1)
   const totalLogicalSpaces = getTotalSpaceCount(spaces);
@@ -305,11 +300,6 @@ const Reservations: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info */}
-      <div className="bg-yellow-100 dark:bg-yellow-900/20 p-4 rounded-lg">
-        <p><strong>Debug:</strong> Maps loaded: {maps.length}, Current map: {currentMap?.name || 'None'}, Reservations: {reservations.length}</p>
-      </div>
-      
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('reservations.title')}</h1>
@@ -510,21 +500,27 @@ const Reservations: React.FC = () => {
             {todayReservations.map(reservation => {
               const space = spaces.find(s => s.id === reservation.space_id);
               return (
-                <div key={reservation.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${space ? getSpaceColor(space.type) : 'bg-gray-400'}`}></div>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                <div key={reservation.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
                         {space?.name || 'Unknown Space'}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {reservation.user_name} • {reservation.start_time} - {reservation.end_time}
-                      </p>
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                      <span className="text-gray-700 dark:text-gray-300">
+                        {reservation.user_name}
+                      </span>
                     </div>
                   </div>
-                  <span className="px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-full">
-                    Active
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      {reservation.start_time} - {reservation.end_time}
+                    </span>
+                  </div>
                 </div>
               );
             })}
