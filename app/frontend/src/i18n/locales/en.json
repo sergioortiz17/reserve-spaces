@@ -65,7 +65,18 @@
     "available": "Available",
     "active": "Active",
     "refresh": "Refresh",
-    "refreshData": "Refresh Data"
+    "refreshData": "Refresh Data",
+    "spaceInfo": "Space Information",
+    "reservationInfo": "Reservation Information",
+    "availableSpace": "Available Space",
+    "reservedBy": "Reserved by",
+    "reservationTime": "Time",
+    "reservationDate": "Date",
+    "notes": "Notes",
+    "noNotes": "No notes",
+    "clickForDetails": "Double-click or right-click for details",
+    "emptySpace": "Empty Space",
+    "noReservation": "No reservation for this date"
   },
   "mapBuilder": {
     "title": "Map Builder",

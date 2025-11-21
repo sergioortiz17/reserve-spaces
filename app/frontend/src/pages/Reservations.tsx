@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, X, RefreshCw } from 'lucide-react';
+import { Calendar, MapPin, X, RefreshCw, Info, Clock, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
@@ -22,6 +22,8 @@ const Reservations: React.FC = () => {
   const [endTime, setEndTime] = useState('10:00');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showSpaceInfo, setShowSpaceInfo] = useState(false);
+  const [selectedSpaceInfo, setSelectedSpaceInfo] = useState<{space: Space | null, reservations: any[]}>({space: null, reservations: []});
 
   // Use real spaces from database, not json_data
   const spaces: Space[] = currentMap?.spaces || [];
@@ -108,6 +110,27 @@ const Reservations: React.FC = () => {
     });
   };
 
+  const getSpaceReservations = (spaceId: string) => {
+    return reservations.filter(reservation => {
+      const reservationDate = reservation.date.split('T')[0];
+      return reservation.space_id === spaceId && 
+             reservationDate === selectedDate &&
+             reservation.status === 'active';
+    });
+  };
+
+  const handleSpaceInfoClick = (space: Space | null) => {
+    if (!space) {
+      setSelectedSpaceInfo({space: null, reservations: []});
+      setShowSpaceInfo(true);
+      return;
+    }
+
+    const spaceReservations = getSpaceReservations(space.id);
+    setSelectedSpaceInfo({space, reservations: spaceReservations});
+    setShowSpaceInfo(true);
+  };
+
   const renderOfficeMap = () => {
     if (!currentMap || spaces.length === 0) {
       return (
@@ -147,9 +170,14 @@ const Reservations: React.FC = () => {
               }
             `}
             onClick={() => space && !isReserved && handleSpaceClick(space)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              handleSpaceInfoClick(space || null);
+            }}
+            onDoubleClick={() => handleSpaceInfoClick(space || null)}
             title={space 
-              ? `${space.name} ${isReserved ? '(Reserved)' : '(Available)'}`
-              : 'Empty space'
+              ? `${space.name} ${isReserved ? `(${t('reservations.reserved')})` : `(${t('reservations.available')})`} - ${t('reservations.clickForDetails')}`
+              : t('reservations.emptySpace')
             }
           />
         );
@@ -233,9 +261,10 @@ const Reservations: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
               {currentMap.name} - {format(new Date(selectedDate), 'MMMM d, yyyy')}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Click on an available space to make a reservation
-            </p>
+            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-1">
+              <p>{t('reservations.clickToReserve')}</p>
+              <p className="text-xs">💡 {t('reservations.clickForDetails')} (doble click o click derecho)</p>
+            </div>
           </div>
           
           <div 
@@ -325,6 +354,127 @@ const Reservations: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Space Information Modal */}
+      {showSpaceInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                <Info className="h-5 w-5 mr-2" />
+                {t('reservations.spaceInfo')}
+              </h3>
+              <button
+                onClick={() => setShowSpaceInfo(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {selectedSpaceInfo.space ? (
+                <>
+                  {/* Space Details */}
+                  <div className="border-b border-gray-200 dark:border-gray-600 pb-4">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      {selectedSpaceInfo.space.name}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div>
+                        <span className="font-medium">{t('common.type')}:</span> {t(`reservations.${selectedSpaceInfo.space.type.replace('_', '')}`)}
+                      </div>
+                      <div>
+                        <span className="font-medium">{t('mapBuilder.capacity')}:</span> {selectedSpaceInfo.space.capacity}
+                      </div>
+                      <div>
+                        <span className="font-medium">{t('mapBuilder.position')}:</span> ({selectedSpaceInfo.space.x}, {selectedSpaceInfo.space.y})
+                      </div>
+                      <div>
+                        <span className="font-medium">{t('mapBuilder.size')}:</span> {selectedSpaceInfo.space.width}x{selectedSpaceInfo.space.height}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reservation Details */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      {t('reservations.reservationInfo')} - {format(new Date(selectedDate), 'MMMM d, yyyy')}
+                    </h4>
+                    
+                    {selectedSpaceInfo.reservations.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedSpaceInfo.reservations.map((reservation) => (
+                          <div key={reservation.id} className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                            <div className="flex items-center mb-2">
+                              <User className="h-4 w-4 mr-2 text-red-600 dark:text-red-400" />
+                              <span className="font-medium text-red-800 dark:text-red-200">
+                                {t('reservations.reservedBy')}: {reservation.user_name || reservation.user_id}
+                              </span>
+                            </div>
+                            {(reservation.start_time || reservation.end_time) && (
+                              <div className="flex items-center mb-2">
+                                <Clock className="h-4 w-4 mr-2 text-red-600 dark:text-red-400" />
+                                <span className="text-sm text-red-700 dark:text-red-300">
+                                  {t('reservations.reservationTime')}: {reservation.start_time || 'N/A'} - {reservation.end_time || 'N/A'}
+                                </span>
+                              </div>
+                            )}
+                            {reservation.notes && (
+                              <div className="text-sm text-red-700 dark:text-red-300">
+                                <span className="font-medium">{t('reservations.notes')}:</span> {reservation.notes}
+                              </div>
+                            )}
+                            {!reservation.notes && (
+                              <div className="text-sm text-red-600 dark:text-red-400 italic">
+                                {t('reservations.noNotes')}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                        <div className="text-green-800 dark:text-green-200 text-center">
+                          <Calendar className="h-8 w-8 mx-auto mb-2 text-green-600 dark:text-green-400" />
+                          <p className="font-medium">{t('reservations.availableSpace')}</p>
+                          <p className="text-sm">{t('reservations.noReservation')}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Button */}
+                  {selectedSpaceInfo.reservations.length === 0 && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-600">
+                      <button
+                        onClick={() => {
+                          setShowSpaceInfo(false);
+                          handleSpaceClick(selectedSpaceInfo.space!);
+                        }}
+                        className="btn btn-primary w-full"
+                      >
+                        {t('reservations.reserve')} {selectedSpaceInfo.space.name}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <MapPin className="mx-auto h-12 w-12 text-gray-400" />
+                  <h4 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {t('reservations.emptySpace')}
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {t('reservations.noSpacesAvailable')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reservation Modal */}
       {showReservationModal && selectedSpace && (
