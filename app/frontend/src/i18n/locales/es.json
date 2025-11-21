@@ -43,6 +43,7 @@
     "chooseMap": "Elige un mapa...",
     "reservationsFor": "reservaciones para la fecha seleccionada",
     "totalSpaces": "espacios totales disponibles",
+    "availableSpaces": "espacios disponibles",
     "noMapSelected": "Ningún mapa seleccionado",
     "pleaseSelectMap": "Por favor selecciona un mapa para ver y reservar espacios.",
     "noSpacesAvailable": "No hay espacios disponibles",

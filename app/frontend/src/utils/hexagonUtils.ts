@@ -142,3 +142,59 @@ export const isMeetingRoomGroupReserved = (
     );
   });
 };
+
+/**
+ * Get the total count of logical spaces (meeting room groups count as 1, invalid spaces excluded)
+ */
+export const getTotalSpaceCount = (spaces: Space[]): number => {
+  const meetingRoomGroups = groupAdjacentMeetingRooms(spaces);
+  const nonMeetingRooms = spaces.filter(space => 
+    space.type !== 'meeting_room' && space.type !== 'invalid_space'
+  );
+  
+  return meetingRoomGroups.length + nonMeetingRooms.length;
+};
+
+/**
+ * Get the count of reserved logical spaces for a specific date (invalid spaces excluded)
+ */
+export const getReservedSpaceCount = (
+  spaces: Space[], 
+  reservations: any[], 
+  selectedDate: string
+): number => {
+  const meetingRoomGroups = groupAdjacentMeetingRooms(spaces);
+  const nonMeetingRooms = spaces.filter(space => 
+    space.type !== 'meeting_room' && space.type !== 'invalid_space'
+  );
+  
+  // Count reserved meeting room groups
+  const reservedMeetingRoomGroups = meetingRoomGroups.filter(group => 
+    isMeetingRoomGroupReserved(group, reservations, selectedDate)
+  ).length;
+  
+  // Count reserved non-meeting rooms (excluding invalid spaces)
+  const reservedNonMeetingRooms = nonMeetingRooms.filter(space => {
+    return reservations.some(reservation => 
+      reservation.space_id === space.id && 
+      reservation.date.split('T')[0] === selectedDate &&
+      reservation.status === 'active'
+    );
+  }).length;
+  
+  return reservedMeetingRoomGroups + reservedNonMeetingRooms;
+};
+
+/**
+ * Get the count of available logical spaces for a specific date
+ */
+export const getAvailableSpaceCount = (
+  spaces: Space[], 
+  reservations: any[], 
+  selectedDate: string
+): number => {
+  const totalSpaces = getTotalSpaceCount(spaces);
+  const reservedSpaces = getReservedSpaceCount(spaces, reservations, selectedDate);
+  
+  return totalSpaces - reservedSpaces;
+};

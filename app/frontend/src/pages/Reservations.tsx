@@ -11,7 +11,10 @@ import HexagonGrid from '../components/HexagonGrid';
 import { 
   findMeetingRoomGroup, 
   getMeetingRoomGroupName, 
-  isMeetingRoomGroupReserved 
+  isMeetingRoomGroupReserved,
+  getTotalSpaceCount,
+  getReservedSpaceCount,
+  getAvailableSpaceCount
 } from '../utils/hexagonUtils';
 
 const Reservations: React.FC = () => {
@@ -294,6 +297,11 @@ const Reservations: React.FC = () => {
   };
 
   const todayReservations = reservations.filter(r => r.date === selectedDate);
+  
+  // Calculate correct space counts (meeting room groups count as 1)
+  const totalLogicalSpaces = getTotalSpaceCount(spaces);
+  const reservedLogicalSpaces = getReservedSpaceCount(spaces, reservations, selectedDate);
+  const availableLogicalSpaces = getAvailableSpaceCount(spaces, reservations, selectedDate);
 
   return (
     <div className="space-y-6">
@@ -379,8 +387,9 @@ const Reservations: React.FC = () => {
               <span>{t('reservations.refresh')}</span>
             </button>
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              <p><strong>{todayReservations.length}</strong> {t('reservations.reservationsFor')}</p>
-              <p><strong>{spaces.length}</strong> {t('reservations.totalSpaces')}</p>
+              <p><strong>{reservedLogicalSpaces}</strong> {t('reservations.reservationsFor')}</p>
+              <p><strong>{totalLogicalSpaces}</strong> {t('reservations.totalSpaces')}</p>
+              <p><strong>{availableLogicalSpaces}</strong> {t('reservations.availableSpaces')}</p>
             </div>
           </div>
         </div>
