@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, X, RefreshCw, Info, Clock, User } from 'lucide-react';
+import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
@@ -51,6 +51,33 @@ const Reservations: React.FC = () => {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const handlePreviousDay = () => {
+    // Parse the date string correctly to avoid timezone issues
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const currentDate = new Date(year, month - 1, day); // month is 0-indexed
+    const previousDay = addDays(currentDate, -1);
+    setSelectedDate(format(previousDay, 'yyyy-MM-dd'));
+  };
+
+  const handleNextDay = () => {
+    // Parse the date string correctly to avoid timezone issues
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const currentDate = new Date(year, month - 1, day); // month is 0-indexed
+    const nextDay = addDays(currentDate, 1);
+    setSelectedDate(format(nextDay, 'yyyy-MM-dd'));
+  };
+
+  const handleToday = () => {
+    setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+  };
+
+  const formatSelectedDate = () => {
+    // Parse the date string correctly to avoid timezone issues
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return format(date, 'EEEE, MMMM d, yyyy');
   };
 
   const handleSpaceClick = (space: Space) => {
@@ -256,6 +283,31 @@ const Reservations: React.FC = () => {
 
         <div className="flex items-end">
           <div className="flex flex-col space-y-2">
+            {/* Date Navigation Controls */}
+            <div className="flex items-center space-x-2 mb-2">
+              <button 
+                onClick={handlePreviousDay}
+                className="btn btn-secondary p-2"
+                title="Previous day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button 
+                onClick={handleToday}
+                className="btn btn-secondary px-3 py-2 text-sm font-medium min-w-[140px]"
+                title="Go to today"
+              >
+                {formatSelectedDate()}
+              </button>
+              <button 
+                onClick={handleNextDay}
+                className="btn btn-secondary p-2"
+                title="Next day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            
             <button
               onClick={handleRefresh}
               disabled={refreshing}
