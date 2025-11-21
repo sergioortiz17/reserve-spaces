@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Grid3X3, Save, Square, Users, Coffee, Trash2, List, Edit, Calendar, X, Ban } from 'lucide-react';
+import { Plus, Grid3X3, Save, Square, Users, Coffee, Trash2, List, Edit, Calendar, X, Ban, Download, Upload } from 'lucide-react';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import toast from 'react-hot-toast';
 import type { MapSpace } from '../types';
 import HexagonGrid from '../components/HexagonGrid';
+import { exportMapToCSV, parseCSVToSpaces, downloadCSV, readCSVFile } from '../utils/csvUtils';
+import { useTranslation } from 'react-i18next';
 
 const MapBuilder: React.FC = () => {
+  const { t } = useTranslation();
   const { maps, currentMap, createNewMap, updateCurrentMap, setCurrentMap, loading } = useOfficeMap();
   
   console.log('MapBuilder - maps count:', maps.length, 'currentMap:', currentMap?.name);
@@ -87,6 +90,63 @@ const MapBuilder: React.FC = () => {
     } catch (error) {
       toast.error('Failed to save map');
     }
+  };
+
+  const handleExportMap = () => {
+    if (!currentMap) {
+      toast.error('No map selected to export');
+      return;
+    }
+
+    try {
+      const csvContent = exportMapToCSV(currentMap);
+      const filename = `${currentMap.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_map.csv`;
+      downloadCSV(csvContent, filename);
+      toast.success(t('export.mapExportedSuccessfully'));
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error(t('export.failedToExportMap'));
+    }
+  };
+
+  const handleImportMap = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      toast.error(t('import.noFileSelected'));
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Please select a CSV file');
+      return;
+    }
+
+    try {
+      const csvContent = await readCSVFile(file);
+      const importedSpaces = parseCSVToSpaces(csvContent);
+      
+      setSpaces(importedSpaces);
+      
+      // Save to backend if we have a current map
+      if (currentMap) {
+        await updateCurrentMap(currentMap.id, {
+          name: currentMap.name,
+          description: currentMap.description,
+          json_data: {
+            ...currentMap.json_data,
+            spaces: importedSpaces
+          }
+        });
+      }
+      
+      toast.success(t('import.mapImportedSuccessfully'));
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error(t('import.csvFormatError', { error: (error as Error).message }));
+    }
+
+    // Reset file input
+    event.target.value = '';
   };
 
   const handleHexClick = (x: number, y: number) => {
@@ -434,7 +494,7 @@ const MapBuilder: React.FC = () => {
             <Plus className="h-4 w-4 mr-2" />
             New Map
           </button>
-          <button 
+          <button
             onClick={handleSaveMap}
             disabled={loading}
             className="btn btn-primary"
@@ -442,6 +502,33 @@ const MapBuilder: React.FC = () => {
             <Save className="h-4 w-4 mr-2" />
             {loading ? 'Saving...' : 'Save Map'}
           </button>
+          
+          <button
+            onClick={handleExportMap}
+            disabled={!currentMap}
+            className="btn btn-secondary"
+            title={t('export.exportToCSV')}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t('export.exportMap')}
+          </button>
+          
+          <div className="relative">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImportMap}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              id="csv-import"
+            />
+            <button
+              className="btn btn-secondary"
+              title={t('import.importFromCSV')}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {t('import.importMap')}
+            </button>
+          </div>
         </div>
       </div>
 

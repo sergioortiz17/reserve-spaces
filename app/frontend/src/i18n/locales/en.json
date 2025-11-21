@@ -115,5 +115,23 @@
   "language": {
     "english": "English",
     "spanish": "Español"
+  },
+  "export": {
+    "exportMap": "Export Map",
+    "exportToCSV": "Export to CSV",
+    "downloadCSV": "Download CSV file",
+    "mapExportedSuccessfully": "Map exported successfully!",
+    "failedToExportMap": "Failed to export map"
+  },
+  "import": {
+    "importMap": "Import Map",
+    "importFromCSV": "Import from CSV",
+    "selectCSVFile": "Select CSV file to import",
+    "mapImportedSuccessfully": "Map imported successfully!",
+    "failedToImportMap": "Failed to import map",
+    "invalidCSVFormat": "Invalid CSV format",
+    "csvFormatError": "CSV format error: {{error}}",
+    "noFileSelected": "No file selected",
+    "importInstructions": "Select a CSV file containing map data to import"
   }
 }

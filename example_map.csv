@@ -1,0 +1,6 @@
+id,name,type,x,y,width,height
+space-1,"Workstation 1",workstation,2,3,1,1
+space-2,"Meeting Room A",meeting_room,5,5,2,2
+space-3,"Cubicle 1",cubicle,8,2,1,1
+space-4,"Invalid Border",invalid_space,0,0,1,1
+space-5,"Workstation 2",workstation,3,3,1,1
