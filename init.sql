@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS spaces (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     map_id UUID NOT NULL REFERENCES office_maps(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    type VARCHAR(50) NOT NULL CHECK (type IN ('workstation', 'meeting_room', 'cubicle')),
+    type VARCHAR(50) NOT NULL CHECK (type IN ('workstation', 'meeting_room', 'cubicle', 'invalid_space')),
     x INTEGER NOT NULL,
     y INTEGER NOT NULL,
     width INTEGER DEFAULT 1,
