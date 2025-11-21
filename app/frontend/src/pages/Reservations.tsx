@@ -1,26 +1,29 @@
 import React, { useState } from 'react';
 import { Calendar, MapPin, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
 import { createReservation } from '../utils/api';
 import toast from 'react-hot-toast';
 import { format, addDays } from 'date-fns';
-import type { MapSpace } from '../types';
+import type { Space } from '../types';
 
 const Reservations: React.FC = () => {
+  const { t } = useTranslation();
   const { maps, currentMap, setCurrentMap } = useOfficeMap();
   const { reservations, fetchReservations, loading: reservationsLoading } = useReservations();
   
   console.log('Reservations - maps count:', maps.length, 'currentMap:', currentMap?.name);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [selectedSpace, setSelectedSpace] = useState<MapSpace | null>(null);
+  const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
   const [showReservationModal, setShowReservationModal] = useState(false);
   const [userName, setUserName] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [loading, setLoading] = useState(false);
 
-  const spaces: MapSpace[] = currentMap?.json_data?.spaces || [];
+  // Use real spaces from database, not json_data
+  const spaces: Space[] = currentMap?.spaces || [];
 
   const handleMapChange = (mapId: string) => {
     const selectedMap = maps.find(map => map.id === mapId);
@@ -29,14 +32,14 @@ const Reservations: React.FC = () => {
     }
   };
 
-  const handleSpaceClick = (space: MapSpace) => {
+  const handleSpaceClick = (space: Space) => {
     setSelectedSpace(space);
     setShowReservationModal(true);
   };
 
   const handleCreateReservation = async () => {
     if (!selectedSpace || !userName.trim()) {
-      toast.error('Please fill all required fields');
+      toast.error(t('reservations.fillAllFields'));
       return;
     }
 
@@ -52,13 +55,13 @@ const Reservations: React.FC = () => {
         status: 'active'
       });
 
-      toast.success('Reservation created successfully!');
+      toast.success(t('reservations.reservationCreated'));
       setShowReservationModal(false);
       setSelectedSpace(null);
       setUserName('');
       fetchReservations();
     } catch (error) {
-      toast.error('Failed to create reservation');
+      toast.error(t('reservations.failedToCreate'));
     } finally {
       setLoading(false);
     }
@@ -86,9 +89,9 @@ const Reservations: React.FC = () => {
       return (
         <div className="text-center py-12">
           <MapPin className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No spaces available</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{t('reservations.noSpacesAvailable')}</h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {!currentMap ? 'Please select a map first.' : 'This map has no spaces defined.'}
+            {!currentMap ? t('reservations.pleaseSelectMap') : t('reservations.thisMapHasNoSpaces')}
           </p>
         </div>
       );
@@ -143,8 +146,8 @@ const Reservations: React.FC = () => {
       
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Reservations</h1>
-        <p className="text-gray-600 dark:text-gray-400">Make and manage space reservations</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('reservations.title')}</h1>
+        <p className="text-gray-600 dark:text-gray-400">{t('reservations.subtitle')}</p>
       </div>
 
       {/* Controls */}

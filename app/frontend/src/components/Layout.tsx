@@ -9,7 +9,9 @@ import {
   Moon,
   Sun
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
+import LanguageToggle from './LanguageToggle';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,12 +20,13 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useTranslation();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutGrid },
-    { name: 'Map Builder', href: '/map-builder', icon: Building2 },
-    { name: 'Reservations', href: '/reservations', icon: BookOpen },
-    { name: 'Calendar', href: '/calendar', icon: Calendar },
+    { name: t('nav.dashboard'), href: '/dashboard', icon: LayoutGrid },
+    { name: t('nav.mapBuilder'), href: '/map-builder', icon: Building2 },
+    { name: t('nav.reservations'), href: '/reservations', icon: BookOpen },
+    { name: t('nav.calendar'), href: '/calendar', icon: Calendar },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -41,10 +44,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
+              <LanguageToggle />
               <button 
                 onClick={toggleTheme}
                 className="p-2 text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200 transition-colors"
-                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                title={`Switch to ${theme === 'light' ? t('theme.dark') : t('theme.light')} mode`}
               >
                 {theme === 'light' ? (
                   <Moon className="h-5 w-5" />

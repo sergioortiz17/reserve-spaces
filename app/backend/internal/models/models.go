@@ -43,8 +43,8 @@ type Reservation struct {
 	UserID    string     `json:"user_id" gorm:"not null"`
 	UserName  string     `json:"user_name"`
 	Date      time.Time  `json:"date" gorm:"type:date;not null"`
-	StartTime *time.Time `json:"start_time,omitempty" gorm:"type:time"`
-	EndTime   *time.Time `json:"end_time,omitempty" gorm:"type:time"`
+	StartTime *string `json:"start_time,omitempty" gorm:"type:time"`
+	EndTime   *string `json:"end_time,omitempty" gorm:"type:time"`
 	Status    string     `json:"status" gorm:"default:'active';check:status IN ('active', 'cancelled')"`
 	Notes     string     `json:"notes"`
 	CreatedAt time.Time  `json:"created_at"`

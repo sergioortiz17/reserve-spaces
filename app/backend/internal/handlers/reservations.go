@@ -121,29 +121,31 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		return
 	}
 
-	// Parse times if provided
-	var startTime, endTime *time.Time
+	// Parse and validate times if provided
+	var startTime, endTime *string
 	if req.StartTime != "" {
-		if t, err := time.Parse("15:04", req.StartTime); err != nil {
+		if _, err := time.Parse("15:04", req.StartTime); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start time format (use HH:MM)"})
 			return
-		} else {
-			startTime = &t
 		}
+		startTime = &req.StartTime
 	}
 	if req.EndTime != "" {
-		if t, err := time.Parse("15:04", req.EndTime); err != nil {
+		if _, err := time.Parse("15:04", req.EndTime); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end time format (use HH:MM)"})
 			return
-		} else {
-			endTime = &t
 		}
+		endTime = &req.EndTime
 	}
 
 	// Validate time range
-	if startTime != nil && endTime != nil && !startTime.Before(*endTime) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Start time must be before end time"})
-		return
+	if startTime != nil && endTime != nil {
+		start, _ := time.Parse("15:04", *startTime)
+		end, _ := time.Parse("15:04", *endTime)
+		if !start.Before(end) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Start time must be before end time"})
+			return
+		}
 	}
 
 	// Check for conflicts
@@ -227,20 +229,18 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		}
 	}
 	if req.StartTime != "" {
-		if t, err := time.Parse("15:04", req.StartTime); err != nil {
+		if _, err := time.Parse("15:04", req.StartTime); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start time format (use HH:MM)"})
 			return
-		} else {
-			reservation.StartTime = &t
 		}
+		reservation.StartTime = &req.StartTime
 	}
 	if req.EndTime != "" {
-		if t, err := time.Parse("15:04", req.EndTime); err != nil {
+		if _, err := time.Parse("15:04", req.EndTime); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end time format (use HH:MM)"})
 			return
-		} else {
-			reservation.EndTime = &t
 		}
+		reservation.EndTime = &req.EndTime
 	}
 	if req.Status != "" {
 		reservation.Status = req.Status
