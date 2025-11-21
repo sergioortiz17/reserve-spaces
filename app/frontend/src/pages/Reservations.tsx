@@ -8,6 +8,11 @@ import toast from 'react-hot-toast';
 import { format, addDays } from 'date-fns';
 import type { Space } from '../types';
 import HexagonGrid from '../components/HexagonGrid';
+import { 
+  findMeetingRoomGroup, 
+  getMeetingRoomGroupName, 
+  isMeetingRoomGroupReserved 
+} from '../utils/hexagonUtils';
 
 const Reservations: React.FC = () => {
   const { t } = useTranslation();
@@ -93,17 +98,40 @@ const Reservations: React.FC = () => {
 
     try {
       setLoading(true);
-      await createReservation({
-        space_id: selectedSpace.id,
-        user_id: userName.trim(),
-        user_name: userName.trim(),
-        date: selectedDate,
-        start_time: startTime,
-        end_time: endTime,
-        status: 'active'
-      });
+      
+      // Check if this is a meeting room group
+      if (selectedSpace.type === 'meeting_room' && selectedSpace._group) {
+        // Create reservations for all spaces in the group
+        const group = selectedSpace._group;
+        const reservationPromises = group.map((space: Space) => 
+          createReservation({
+            space_id: space.id,
+            user_id: userName.trim(),
+            user_name: userName.trim(),
+            date: selectedDate,
+            start_time: startTime,
+            end_time: endTime,
+            status: 'active'
+          })
+        );
+        
+        await Promise.all(reservationPromises);
+        toast.success(`${t('reservations.reservationCreated')} (${group.length} spaces)`);
+      } else {
+        // Single space reservation
+        await createReservation({
+          space_id: selectedSpace.id,
+          user_id: userName.trim(),
+          user_name: userName.trim(),
+          date: selectedDate,
+          start_time: startTime,
+          end_time: endTime,
+          status: 'active'
+        });
+        
+        toast.success(t('reservations.reservationCreated'));
+      }
 
-      toast.success(t('reservations.reservationCreated'));
       setShowReservationModal(false);
       setSelectedSpace(null);
       setUserName('');
@@ -138,6 +166,14 @@ const Reservations: React.FC = () => {
     });
   };
 
+  const isSpaceOrGroupReserved = (space: any) => {
+    if (space.type === 'meeting_room') {
+      const group = findMeetingRoomGroup(spaces, space);
+      return isMeetingRoomGroupReserved(group, reservations, selectedDate);
+    }
+    return isSpaceReserved(space.id);
+  };
+
   const getSpaceReservations = (spaceId: string) => {
     return reservations.filter(reservation => {
       const reservationDate = reservation.date.split('T')[0];
@@ -165,7 +201,13 @@ const Reservations: React.FC = () => {
     // Invalid spaces are never reservable and appear as dark blocks
     if (space.type === 'invalid_space') return '#374151'; // Dark gray - matches dark mode
     
-    if (isReserved) return '#ef4444'; // Reserved - red
+    // For meeting rooms, check if the entire group is reserved
+    if (space.type === 'meeting_room') {
+      const groupReserved = isSpaceOrGroupReserved(space);
+      if (groupReserved) return '#ef4444'; // Reserved - red
+    } else if (isReserved) {
+      return '#ef4444'; // Reserved - red
+    }
     
     // Space colors by type
     switch (space.type) {
@@ -183,8 +225,27 @@ const Reservations: React.FC = () => {
   };
 
   const handleHexClick = (_x: number, _y: number, space?: any) => {
-    if (space && space.type !== 'invalid_space' && !isSpaceReserved(space.id)) {
-      handleSpaceClick(space);
+    if (space && space.type !== 'invalid_space') {
+      if (space.type === 'meeting_room') {
+        // For meeting rooms, find the group and check if any in the group is reserved
+        const group = findMeetingRoomGroup(spaces, space);
+        const groupReserved = isMeetingRoomGroupReserved(group, reservations, selectedDate);
+        
+        if (!groupReserved) {
+          // Pass the entire group as the selected space
+          const groupSpace = {
+            ...space,
+            name: getMeetingRoomGroupName(group),
+            _group: group // Store the group for later use
+          };
+          handleSpaceClick(groupSpace);
+        }
+      } else {
+        // For other space types, use normal logic
+        if (!isSpaceReserved(space.id)) {
+          handleSpaceClick(space);
+        }
+      }
     }
   };
 

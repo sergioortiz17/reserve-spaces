@@ -38,6 +38,7 @@ export interface Space {
   created_at: string;
   updated_at: string;
   reservations?: Reservation[];
+  _group?: Space[]; // For meeting room groups
 }
 
 export interface Reservation {
