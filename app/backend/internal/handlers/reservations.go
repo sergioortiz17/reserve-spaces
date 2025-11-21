@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"office-reservations/internal/models"
 	"time"
@@ -202,9 +203,11 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 
 	var req models.UpdateReservationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("UpdateReservation binding error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("UpdateReservation request: %+v", req)
 
 	var reservation models.Reservation
 	if err := h.db.First(&reservation, reservationID).Error; err != nil {
@@ -213,6 +216,12 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reservation"})
+		return
+	}
+
+	// Check if reservation is cancelled
+	if reservation.Status == "cancelled" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot update cancelled reservation"})
 		return
 	}
 

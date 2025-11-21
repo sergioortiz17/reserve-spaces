@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
-import { createReservation } from '../utils/api';
+import { createReservation, updateReservation, deleteReservation } from '../utils/api';
 import toast from 'react-hot-toast';
 import { format, addDays } from 'date-fns';
 import type { Space } from '../types';
@@ -33,6 +33,11 @@ const Reservations: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showSpaceInfo, setShowSpaceInfo] = useState(false);
   const [selectedSpaceInfo, setSelectedSpaceInfo] = useState<{space: Space | null, reservations: any[]}>({space: null, reservations: []});
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingReservation, setEditingReservation] = useState<any>(null);
+  const [editUserName, setEditUserName] = useState('');
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editEndTime, setEditEndTime] = useState('');
 
   // Use real spaces from database, not json_data
   const spaces: Space[] = currentMap?.spaces || [];
@@ -145,6 +150,67 @@ const Reservations: React.FC = () => {
       ]);
     } catch (error) {
       toast.error(t('reservations.failedToCreate'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditReservation = (reservation: any) => {
+    setEditingReservation(reservation);
+    setEditUserName(reservation.user_name);
+    // Convert time format from "HH:MM:SS" to "HH:MM" for HTML time input
+    setEditStartTime(reservation.start_time ? reservation.start_time.substring(0, 5) : '');
+    setEditEndTime(reservation.end_time ? reservation.end_time.substring(0, 5) : '');
+    setShowEditModal(true);
+  };
+
+  const handleUpdateReservation = async () => {
+    if (!editingReservation) return;
+
+    // Validate required fields
+    if (!editUserName.trim() || !editStartTime || !editEndTime) {
+      toast.error(t('reservations.fillAllFields'));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await updateReservation(editingReservation.id, {
+        user_name: editUserName.trim(),
+        start_time: editStartTime,
+        end_time: editEndTime,
+      });
+      
+      toast.success(t('reservations.reservationUpdated'));
+      setShowEditModal(false);
+      setEditingReservation(null);
+      
+      // Refresh reservations
+      await fetchReservations();
+    } catch (error: any) {
+      // Check if it's a specific error message from the backend
+      if (error.response?.data?.error === 'Cannot update cancelled reservation') {
+        toast.error(t('reservations.cannotUpdateCancelled'));
+      } else {
+        toast.error(t('reservations.failedToUpdate'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteReservation = async (reservationId: string) => {
+    if (!confirm(t('reservations.confirmDelete'))) return;
+
+    setLoading(true);
+    try {
+      await deleteReservation(reservationId);
+      toast.success(t('reservations.reservationDeleted'));
+      
+      // Refresh reservations
+      await fetchReservations();
+    } catch (error) {
+      toast.error(t('reservations.failedToDelete'));
     } finally {
       setLoading(false);
     }
@@ -287,7 +353,7 @@ const Reservations: React.FC = () => {
     );
   };
 
-  // Filter reservations for the selected date (handle ISO date format)
+  // Filter reservations for the selected date (handle ISO date format, only active reservations)
   const todayReservations = reservations.filter(r => {
     const reservationDate = r.date.split('T')[0]; // Extract date part from ISO string
     return reservationDate === selectedDate && r.status === 'active';
@@ -501,7 +567,7 @@ const Reservations: React.FC = () => {
               const space = spaces.find(s => s.id === reservation.space_id);
               return (
                 <div key={reservation.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500">
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-4 flex-1">
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                       <span className="font-medium text-gray-900 dark:text-gray-100">
@@ -514,12 +580,28 @@ const Reservations: React.FC = () => {
                         {reservation.user_name}
                       </span>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {reservation.start_time} - {reservation.end_time}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                      {reservation.start_time} - {reservation.end_time}
-                    </span>
+                    <button
+                      onClick={() => handleEditReservation(reservation)}
+                      className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title={t('reservations.editReservation')}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteReservation(reservation.id)}
+                      className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title={t('reservations.deleteReservation')}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -534,6 +616,94 @@ const Reservations: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Reservation Modal */}
+      {showEditModal && editingReservation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                <Edit className="h-5 w-5 mr-2" />
+                {t('reservations.editReservation')}
+              </h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('reservations.spaceName')}
+                </label>
+                <input
+                  type="text"
+                  value={spaces.find(s => s.id === editingReservation.space_id)?.name || 'Unknown Space'}
+                  disabled
+                  className="input bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('reservations.userName')}
+                </label>
+                <input
+                  type="text"
+                  value={editUserName}
+                  onChange={(e) => setEditUserName(e.target.value)}
+                  className="input"
+                  placeholder={t('reservations.enterUserName')}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('reservations.startTime')}
+                  </label>
+                  <input
+                    type="time"
+                    value={editStartTime}
+                    onChange={(e) => setEditStartTime(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('reservations.endTime')}
+                  </label>
+                  <input
+                    type="time"
+                    value={editEndTime}
+                    onChange={(e) => setEditEndTime(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleUpdateReservation}
+                disabled={loading || !editUserName.trim() || !editStartTime || !editEndTime}
+                className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? t('common.loading') : t('reservations.updateReservation')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Space Information Modal */}
       {showSpaceInfo && (

@@ -78,7 +78,21 @@
     "clickForDetails": "Double-click or right-click for details",
     "emptySpace": "Empty Space",
     "invalidSpaceDesc": "Invalid space (border/blocked area)",
-    "noReservation": "No reservation for this date"
+    "noReservation": "No reservation for this date",
+    "editReservation": "Edit Reservation",
+    "deleteReservation": "Delete Reservation",
+    "updateReservation": "Update Reservation",
+    "reservationUpdated": "Reservation updated successfully",
+    "reservationDeleted": "Reservation deleted successfully",
+    "failedToUpdate": "Failed to update reservation",
+    "failedToDelete": "Failed to delete reservation",
+    "cannotUpdateCancelled": "Cannot update cancelled reservation",
+    "confirmDelete": "Are you sure you want to delete this reservation?",
+    "userName": "User Name",
+    "enterUserName": "Enter user name",
+    "spaceName": "Space Name",
+    "startTime": "Start Time",
+    "endTime": "End Time"
   },
   "mapBuilder": {
     "title": "Map Builder",

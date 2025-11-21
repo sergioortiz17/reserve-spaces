@@ -69,6 +69,12 @@ export const createReservation = async (data: any): Promise<Reservation> => {
   return response.data;
 };
 
+export const updateReservation = async (id: string, data: any): Promise<Reservation> => {
+  console.log('Updating reservation:', id, 'with data:', data);
+  const response = await api.put(`/reservations/${id}`, data);
+  return response.data;
+};
+
 export const deleteReservation = async (id: string): Promise<void> => {
   await api.delete(`/reservations/${id}`);
 };
