@@ -63,7 +63,9 @@
     "cubicle": "Cubículo",
     "reserved": "Reservado",
     "available": "Disponible",
-    "active": "Activo"
+    "active": "Activo",
+    "refresh": "Actualizar",
+    "refreshData": "Actualizar Datos"
   },
   "mapBuilder": {
     "title": "Constructor de Mapas",

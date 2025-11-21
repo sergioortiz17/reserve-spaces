@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, X } from 'lucide-react';
+import { Calendar, MapPin, X, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
@@ -10,7 +10,7 @@ import type { Space } from '../types';
 
 const Reservations: React.FC = () => {
   const { t } = useTranslation();
-  const { maps, currentMap, setCurrentMap } = useOfficeMap();
+  const { maps, currentMap, setCurrentMap, fetchMap } = useOfficeMap();
   const { reservations, fetchReservations, loading: reservationsLoading } = useReservations();
   
   console.log('Reservations - maps count:', maps.length, 'currentMap:', currentMap?.name);
@@ -21,6 +21,7 @@ const Reservations: React.FC = () => {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Use real spaces from database, not json_data
   const spaces: Space[] = currentMap?.spaces || [];
@@ -29,6 +30,23 @@ const Reservations: React.FC = () => {
     const selectedMap = maps.find(map => map.id === mapId);
     if (selectedMap) {
       setCurrentMap(selectedMap);
+      // Refresh reservations when changing maps
+      fetchReservations();
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchReservations(),
+        // Also refresh the current map to get updated spaces
+        currentMap ? fetchMap(currentMap.id) : Promise.resolve()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -59,7 +77,11 @@ const Reservations: React.FC = () => {
       setShowReservationModal(false);
       setSelectedSpace(null);
       setUserName('');
-      fetchReservations();
+      // Refresh both reservations and map data
+      await Promise.all([
+        fetchReservations(),
+        currentMap ? fetchMap(currentMap.id) : Promise.resolve()
+      ]);
     } catch (error) {
       toast.error(t('reservations.failedToCreate'));
     } finally {
@@ -77,11 +99,13 @@ const Reservations: React.FC = () => {
   };
 
   const isSpaceReserved = (spaceId: string) => {
-    return reservations.some(reservation => 
-      reservation.space_id === spaceId && 
-      reservation.date === selectedDate &&
-      reservation.status === 'active'
-    );
+    return reservations.some(reservation => {
+      // Convert ISO date to YYYY-MM-DD format for comparison
+      const reservationDate = reservation.date.split('T')[0];
+      return reservation.space_id === spaceId && 
+             reservationDate === selectedDate &&
+             reservation.status === 'active';
+    });
   };
 
   const renderOfficeMap = () => {
@@ -116,10 +140,9 @@ const Reservations: React.FC = () => {
             className={`
               w-10 h-10 border border-gray-200 dark:border-gray-600 cursor-pointer transition-all duration-200
               ${space 
-                ? `${getSpaceColor(space.type)} ${isReserved 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : 'hover:opacity-80'
-                } border-gray-400` 
+                ? isReserved
+                  ? 'bg-red-500 opacity-75 cursor-not-allowed border-red-600'
+                  : `${getSpaceColor(space.type)} hover:opacity-80 border-gray-400`
                 : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
               }
             `}
@@ -185,9 +208,20 @@ const Reservations: React.FC = () => {
         </div>
 
         <div className="flex items-end">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            <p><strong>{todayReservations.length}</strong> reservations for selected date</p>
-            <p><strong>{spaces.length}</strong> total spaces available</p>
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="btn btn-secondary flex items-center space-x-2"
+              title={t('reservations.refreshData')}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>{t('reservations.refresh')}</span>
+            </button>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              <p><strong>{todayReservations.length}</strong> {t('reservations.reservationsFor')}</p>
+              <p><strong>{spaces.length}</strong> {t('reservations.totalSpaces')}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -218,19 +252,19 @@ const Reservations: React.FC = () => {
           <div className="mt-4 flex flex-wrap gap-6">
             <div className="flex items-center">
               <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">Workstation</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.workstation')}</span>
             </div>
             <div className="flex items-center">
               <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">Meeting Room</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.meetingRoom')}</span>
             </div>
             <div className="flex items-center">
               <div className="w-4 h-4 bg-purple-500 rounded mr-2"></div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">Cubicle</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.cubicle')}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-gray-400 opacity-50 rounded mr-2"></div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">Reserved</span>
+              <div className="w-4 h-4 bg-red-500 opacity-75 rounded mr-2"></div>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.reserved')}</span>
             </div>
           </div>
         </div>

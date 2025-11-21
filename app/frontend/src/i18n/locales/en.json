@@ -63,7 +63,9 @@
     "cubicle": "Cubicle",
     "reserved": "Reserved",
     "available": "Available",
-    "active": "Active"
+    "active": "Active",
+    "refresh": "Refresh",
+    "refreshData": "Refresh Data"
   },
   "mapBuilder": {
     "title": "Map Builder",
