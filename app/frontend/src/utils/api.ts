@@ -37,6 +37,10 @@ export const updateMap = async (id: string, data: any): Promise<OfficeMap> => {
   return response.data;
 };
 
+export const deleteMap = async (id: string): Promise<void> => {
+  await api.delete(`/maps/${id}`);
+};
+
 // Spaces API
 export const getSpaces = async (mapId?: string): Promise<Space[]> => {
   const params = mapId ? { map_id: mapId } : {};

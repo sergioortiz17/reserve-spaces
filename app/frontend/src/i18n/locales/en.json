@@ -113,7 +113,11 @@
     "height": "Height",
     "saveMap": "Save Map",
     "mapSaved": "Map saved successfully!",
-    "failedToSave": "Failed to save map"
+    "failedToSave": "Failed to save map",
+    "deleteMap": "Delete Map",
+    "mapDeleted": "Map deleted successfully!",
+    "failedToDelete": "Failed to delete map",
+    "confirmDelete": "Are you sure you want to delete the map '{{mapName}}'? This action cannot be undone."
   },
   "theme": {
     "light": "Light",

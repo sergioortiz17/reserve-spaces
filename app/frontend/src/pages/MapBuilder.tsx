@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 const MapBuilder: React.FC = () => {
   const { t } = useTranslation();
-  const { maps, currentMap, createNewMap, updateCurrentMap, setCurrentMap, loading } = useOfficeMap();
+  const { maps, currentMap, createNewMap, updateCurrentMap, deleteMapById, setCurrentMap, loading } = useOfficeMap();
   
   console.log('MapBuilder - maps count:', maps.length, 'currentMap:', currentMap?.name);
   
@@ -40,6 +40,19 @@ const MapBuilder: React.FC = () => {
   const handleSelectMap = (map: any) => {
     setCurrentMap(map);
     setShowMapsList(false);
+  };
+
+  const handleDeleteMap = async (mapId: string, mapName: string) => {
+    if (!confirm(t('mapBuilder.confirmDelete', { mapName }))) {
+      return;
+    }
+
+    try {
+      await deleteMapById(mapId);
+      toast.success(t('mapBuilder.mapDeleted'));
+    } catch (error) {
+      toast.error(t('mapBuilder.failedToDelete'));
+    }
   };
 
   const handleCreateNewMap = async () => {
@@ -414,6 +427,13 @@ const MapBuilder: React.FC = () => {
                     className="btn btn-secondary text-sm"
                   >
                     Select
+                  </button>
+                  <button
+                    onClick={() => handleDeleteMap(map.id, map.name)}
+                    className="btn bg-red-600 hover:bg-red-700 text-white text-sm p-2"
+                    title={t('mapBuilder.deleteMap')}
+                  >
+                    <Trash2 className="h-3 w-3" />
                   </button>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getMaps, getMap, createMap, updateMap } from '../utils/api';
+import { getMaps, getMap, createMap, updateMap, deleteMap } from '../utils/api';
 import type { OfficeMap } from '../types';
 
 export const useOfficeMap = () => {
@@ -70,6 +70,24 @@ export const useOfficeMap = () => {
     }
   };
 
+  const deleteMapById = async (id: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await deleteMap(id);
+      setMaps(prev => prev.filter(map => map.id !== id));
+      // If we deleted the current map, clear it
+      if (currentMap?.id === id) {
+        setCurrentMap(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete map');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchMaps();
   }, []);
@@ -83,6 +101,7 @@ export const useOfficeMap = () => {
     fetchMap,
     createNewMap,
     updateCurrentMap,
+    deleteMapById,
     setCurrentMap,
   };
 };

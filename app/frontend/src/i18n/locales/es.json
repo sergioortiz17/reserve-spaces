@@ -113,7 +113,11 @@
     "height": "Alto",
     "saveMap": "Guardar Mapa",
     "mapSaved": "¡Mapa guardado exitosamente!",
-    "failedToSave": "Error al guardar el mapa"
+    "failedToSave": "Error al guardar el mapa",
+    "deleteMap": "Eliminar Mapa",
+    "mapDeleted": "¡Mapa eliminado exitosamente!",
+    "failedToDelete": "Error al eliminar el mapa",
+    "confirmDelete": "¿Estás seguro de que quieres eliminar el mapa '{{mapName}}'? Esta acción no se puede deshacer."
   },
   "theme": {
     "light": "Claro",
