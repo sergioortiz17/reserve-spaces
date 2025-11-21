@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Mode Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div class="min-h-screen p-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex items-center justify-between mb-8">
+                <h1 class="text-3xl font-bold">Dark Mode Test</h1>
+                <button 
+                    id="theme-toggle"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    Toggle Dark Mode
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-semibold mb-4">Card Example</h2>
+                    <p class="text-gray-600 dark:text-gray-400">
+                        This is a test card to verify dark mode styling is working correctly.
+                    </p>
+                    <button class="mt-4 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        Test Button
+                    </button>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-semibold mb-4">Form Example</h2>
+                    <input 
+                        type="text" 
+                        placeholder="Test input"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                </div>
+            </div>
+            
+            <div class="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p class="text-blue-800 dark:text-blue-200">
+                    <strong>Instructions:</strong> Click the "Toggle Dark Mode" button to test the theme switching.
+                    The page should smoothly transition between light and dark modes.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        
+        // Check for saved theme preference or default to light mode
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        
+        if (currentTheme === 'dark') {
+            html.classList.add('dark');
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                themeToggle.textContent = 'Toggle Dark Mode';
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.textContent = 'Toggle Light Mode';
+            }
+        });
+        
+        // Update button text based on current theme
+        if (html.classList.contains('dark')) {
+            themeToggle.textContent = 'Toggle Light Mode';
+        }
+    </script>
+</body>
+</html>

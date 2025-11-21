@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: office_postgres
+    environment:
+      POSTGRES_DB: office_reservations
+      POSTGRES_USER: office_user
+      POSTGRES_PASSWORD: office_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U office_user -d office_reservations"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../app/backend
+      dockerfile: ../../deploy/Dockerfile.backend
+    container_name: office_backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: office_user
+      DB_PASSWORD: office_pass
+      DB_NAME: office_reservations
+      PORT: 8080
+      GIN_MODE: release
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../app/frontend
+      dockerfile: ../../deploy/Dockerfile.frontend
+    container_name: office_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

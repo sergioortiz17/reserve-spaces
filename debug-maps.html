@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Maps</title>
+</head>
+<body>
+    <h1>Debug Maps API</h1>
+    <div id="result"></div>
+    
+    <script>
+        async function testMapsAPI() {
+            try {
+                const response = await fetch('http://localhost:5173/api/maps');
+                const data = await response.json();
+                
+                document.getElementById('result').innerHTML = `
+                    <h2>API Response:</h2>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>Maps count:</strong> ${data.length}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h2>Error:</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+        
+        testMapsAPI();
+    </script>
+</body>
+</html>
