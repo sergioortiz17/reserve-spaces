@@ -2,8 +2,7 @@
   "nav": {
     "dashboard": "Panel",
     "mapBuilder": "Constructor de Mapas",
-    "reservations": "Reservaciones",
-    "calendar": "Calendario"
+    "reservations": "Reservaciones"
   },
   "common": {
     "loading": "Cargando...",
@@ -100,13 +99,6 @@
     "saveMap": "Guardar Mapa",
     "mapSaved": "¡Mapa guardado exitosamente!",
     "failedToSave": "Error al guardar el mapa"
-  },
-  "calendar": {
-    "title": "Calendario",
-    "subtitle": "Ver reservaciones en formato de calendario",
-    "today": "Hoy",
-    "week": "Semana",
-    "month": "Mes"
   },
   "theme": {
     "light": "Claro",

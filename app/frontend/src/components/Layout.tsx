@@ -2,7 +2,6 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutGrid, 
-  Calendar, 
   BookOpen, 
   Settings,
   Building2,
@@ -26,7 +25,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: t('nav.dashboard'), href: '/dashboard', icon: LayoutGrid },
     { name: t('nav.mapBuilder'), href: '/map-builder', icon: Building2 },
     { name: t('nav.reservations'), href: '/reservations', icon: BookOpen },
-    { name: t('nav.calendar'), href: '/calendar', icon: Calendar },
   ];
 
   const isActive = (path: string) => location.pathname === path;

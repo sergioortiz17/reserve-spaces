@@ -5,7 +5,6 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import MapBuilder from './pages/MapBuilder';
 import Reservations from './pages/Reservations';
-import Calendar from './pages/Calendar';
 
 function App() {
   return (
@@ -16,7 +15,6 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/map-builder" element={<MapBuilder />} />
           <Route path="/reservations" element={<Reservations />} />
-          <Route path="/calendar" element={<Calendar />} />
         </Routes>
       </Layout>
       <Toaster 
