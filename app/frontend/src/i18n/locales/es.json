@@ -61,6 +61,7 @@
     "workstation": "Estación de Trabajo",
     "meetingRoom": "Sala de Reuniones",
     "cubicle": "Cubículo",
+    "invalidSpace": "Espacio Inválido",
     "reserved": "Reservado",
     "available": "Disponible",
     "active": "Activo",
@@ -76,6 +77,7 @@
     "noNotes": "Sin notas",
     "clickForDetails": "Doble clic o clic derecho para detalles",
     "emptySpace": "Espacio Vacío",
+    "invalidSpaceDesc": "Espacio inválido (borde/área bloqueada)",
     "noReservation": "Sin reservación para esta fecha"
   },
   "mapBuilder": {

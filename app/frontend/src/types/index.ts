@@ -1,7 +1,7 @@
 export interface MapSpace {
   id: string;
   name: string;
-  type: 'workstation' | 'meeting_room' | 'cubicle';
+  type: 'workstation' | 'meeting_room' | 'cubicle' | 'invalid_space';
   x: number;
   y: number;
   width: number;
@@ -29,7 +29,7 @@ export interface Space {
   id: string;
   map_id: string;
   name: string;
-  type: 'workstation' | 'meeting_room' | 'cubicle';
+  type: 'workstation' | 'meeting_room' | 'cubicle' | 'invalid_space';
   x: number;
   y: number;
   width: number;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Grid3X3, Save, Square, Users, Coffee, Trash2, List, Edit, Calendar } from 'lucide-react';
+import { Plus, Grid3X3, Save, Square, Users, Coffee, Trash2, List, Edit, Calendar, X, Ban } from 'lucide-react';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import toast from 'react-hot-toast';
 import type { MapSpace } from '../types';
+import HexagonGrid from '../components/HexagonGrid';
 
 const MapBuilder: React.FC = () => {
   const { maps, currentMap, createNewMap, updateCurrentMap, setCurrentMap, loading } = useOfficeMap();
@@ -15,10 +16,12 @@ const MapBuilder: React.FC = () => {
   }
   const [isCreating, setIsCreating] = useState(false);
   const [showMapsList, setShowMapsList] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<'workstation' | 'meeting_room' | 'cubicle'>('workstation');
+  const [selectedTool, setSelectedTool] = useState<'workstation' | 'meeting_room' | 'cubicle' | 'invalid_space'>('workstation');
   const [spaces, setSpaces] = useState<MapSpace[]>(currentMap?.json_data?.spaces || []);
   const [mapName, setMapName] = useState('');
   const [mapDescription, setMapDescription] = useState('');
+  const [selectedHexagons, setSelectedHexagons] = useState<Set<string>>(new Set());
+  const [isSelecting, setIsSelecting] = useState(false);
 
   const gridWidth = 20;
   const gridHeight = 15;
@@ -86,20 +89,52 @@ const MapBuilder: React.FC = () => {
     }
   };
 
-  const handleCellClick = (x: number, y: number) => {
+  const handleHexClick = (x: number, y: number) => {
     if (!currentMap) return;
+    
+    const hexKey = `${x}-${y}`;
+    
+    if (isSelecting) {
+      // Multi-selection mode
+      const newSelected = new Set(selectedHexagons);
+      if (newSelected.has(hexKey)) {
+        newSelected.delete(hexKey);
+      } else {
+        newSelected.add(hexKey);
+      }
+      setSelectedHexagons(newSelected);
+    } else {
+      // Single click mode - toggle space
+      const existingSpace = spaces.find(space => 
+        x >= space.x && x < space.x + space.width &&
+        y >= space.y && y < space.y + space.height
+      );
 
-    // Check if there's already a space at this position
-    const existingSpace = spaces.find(space => 
-      x >= space.x && x < space.x + space.width &&
-      y >= space.y && y < space.y + space.height
-    );
+      if (existingSpace) {
+        // Remove existing space
+        setSpaces(prev => prev.filter(space => space.id !== existingSpace.id));
+        return;
+      }
 
-    if (existingSpace) {
-      // Remove existing space
-      setSpaces(prev => prev.filter(space => space.id !== existingSpace.id));
-      return;
+      // Add single hexagon space
+      createSpaceFromHexagons(new Set([hexKey]));
     }
+  };
+
+  const createSpaceFromHexagons = (hexagons: Set<string>) => {
+    if (hexagons.size === 0) return;
+
+    // Convert hex keys to coordinates
+    const coords = Array.from(hexagons).map(key => {
+      const [x, y] = key.split('-').map(Number);
+      return { x, y };
+    });
+
+    // Find bounding box
+    const minX = Math.min(...coords.map(c => c.x));
+    const minY = Math.min(...coords.map(c => c.y));
+    const maxX = Math.max(...coords.map(c => c.x));
+    const maxY = Math.max(...coords.map(c => c.y));
 
     // Generate a proper UUID for the space
     const generateUUID = () => {
@@ -110,52 +145,68 @@ const MapBuilder: React.FC = () => {
       });
     };
 
-    // Add new space
+    // Create new space
     const newSpace: MapSpace = {
       id: generateUUID(),
       type: selectedTool,
       name: `${selectedTool.replace('_', ' ')} ${spaces.length + 1}`,
-      x,
-      y,
-      width: selectedTool === 'meeting_room' ? 2 : 1,
-      height: selectedTool === 'meeting_room' ? 2 : 1
+      x: minX,
+      y: minY,
+      width: maxX - minX + 1,
+      height: maxY - minY + 1
     };
 
     setSpaces(prev => [...prev, newSpace]);
   };
 
-  const getSpaceColor = (type: string) => {
-    switch (type) {
-      case 'workstation': return 'bg-blue-500';
-      case 'meeting_room': return 'bg-green-500';
-      case 'cubicle': return 'bg-purple-500';
-      default: return 'bg-gray-500';
+  const handleCreateFromSelection = () => {
+    if (selectedHexagons.size > 0) {
+      createSpaceFromHexagons(selectedHexagons);
+      setSelectedHexagons(new Set());
+      setIsSelecting(false);
     }
   };
 
-  const renderGrid = () => {
-    const cells = [];
-    for (let y = 0; y < gridHeight; y++) {
-      for (let x = 0; x < gridWidth; x++) {
-        const space = spaces.find(space => 
-          x >= space.x && x < space.x + space.width &&
-          y >= space.y && y < space.y + space.height
-        );
+  const handleCancelSelection = () => {
+    setSelectedHexagons(new Set());
+    setIsSelecting(false);
+  };
 
-        cells.push(
-          <div
-            key={`${x}-${y}`}
-            className={`
-              w-10 h-10 border border-gray-200 cursor-pointer hover:bg-gray-100
-              ${space ? `${getSpaceColor(space.type)} border-gray-400` : 'bg-white'}
-            `}
-            onClick={() => handleCellClick(x, y)}
-            title={space ? space.name : `Add ${selectedTool}`}
-          />
-        );
-      }
+  // Removed getSpaceColor as it's no longer needed with hexagons
+
+  const getHexColor = (_x: number, _y: number, space?: any) => {
+    if (!space) return '#f9fafb'; // Empty space - light gray
+    
+    // Space colors by type
+    switch (space.type) {
+      case 'workstation': return '#3b82f6'; // Blue
+      case 'meeting_room': return '#10b981'; // Green
+      case 'cubicle': return '#8b5cf6'; // Purple
+      case 'invalid_space': return '#f3f4f6'; // Same as background - appears invisible
+      default: return '#6b7280'; // Gray
     }
-    return cells;
+  };
+
+  const getHexTitle = (_x: number, _y: number, space?: any) => {
+    if (!space) return `Add ${selectedTool}`;
+    return space.name;
+  };
+
+  const renderGrid = () => {
+    return (
+      <div className="flex justify-center">
+        <HexagonGrid
+          width={gridWidth}
+          height={gridHeight}
+          hexSize={18}
+          spaces={spaces}
+          onHexClick={handleHexClick}
+          getHexColor={getHexColor}
+          getHexTitle={getHexTitle}
+          selectedHexagons={selectedHexagons}
+        />
+      </div>
+    );
   };
 
   if (isCreating) {
@@ -396,8 +447,8 @@ const MapBuilder: React.FC = () => {
 
       {/* Tools */}
       <div className="card p-4">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Tools</h3>
-        <div className="flex space-x-2">
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Tools</h3>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setSelectedTool('workstation')}
             className={`px-3 py-2 rounded-md text-sm font-medium ${
@@ -432,6 +483,48 @@ const MapBuilder: React.FC = () => {
             Cubicle
           </button>
           <button
+            onClick={() => setSelectedTool('invalid_space')}
+            className={`px-3 py-2 rounded-md text-sm font-medium ${
+              selectedTool === 'invalid_space' 
+                ? 'bg-gray-200 text-gray-800 border-2 border-gray-400' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Ban className="h-4 w-4 mr-1 inline" />
+            Invalid Space
+          </button>
+          <div className="border-l border-gray-300 mx-2"></div>
+          <button
+            onClick={() => setIsSelecting(!isSelecting)}
+            className={`px-3 py-2 rounded-md text-sm font-medium ${
+              isSelecting 
+                ? 'bg-orange-100 text-orange-700 border-2 border-orange-300' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Grid3X3 className="h-4 w-4 mr-1 inline" />
+            Multi-Select {isSelecting ? '(ON)' : '(OFF)'}
+          </button>
+          {isSelecting && selectedHexagons.size > 0 && (
+            <>
+              <button
+                onClick={handleCreateFromSelection}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200"
+              >
+                <Plus className="h-4 w-4 mr-1 inline" />
+                Create Space ({selectedHexagons.size} hexagons)
+              </button>
+              <button
+                onClick={handleCancelSelection}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                <X className="h-4 w-4 mr-1 inline" />
+                Cancel
+              </button>
+            </>
+          )}
+          <div className="border-l border-gray-300 mx-2"></div>
+          <button
             onClick={() => setSpaces([])}
             className="px-3 py-2 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200"
           >
@@ -444,39 +537,77 @@ const MapBuilder: React.FC = () => {
       {/* Grid */}
       <div className="card p-6">
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-gray-700">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Office Layout ({spaces.length} spaces)
           </h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Click to add {selectedTool.replace('_', ' ')}, click existing space to remove
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {isSelecting 
+              ? `Multi-select mode: Click hexagons to select, then create space (${selectedHexagons.size} selected)`
+              : `Click to add ${selectedTool.replace('_', ' ')}, click existing space to remove`
+            }
           </p>
         </div>
-        <div 
-          className="grid gap-0 border-2 border-gray-300 inline-block"
-          style={{ 
-            gridTemplateColumns: `repeat(${gridWidth}, 1fr)`,
-            gridTemplateRows: `repeat(${gridHeight}, 1fr)`
-          }}
-        >
-          {renderGrid()}
-        </div>
+        {renderGrid()}
       </div>
 
       {/* Legend */}
       <div className="card p-4">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Legend</h3>
-        <div className="flex space-x-6">
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Legend</h3>
+        <div className="flex flex-wrap gap-6">
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">Workstation</span>
+            <svg width="16" height="14" className="mr-2">
+              <polygon 
+                points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                fill="#3b82f6" 
+                stroke="#d1d5db" 
+                strokeWidth="0.5"
+              />
+            </svg>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Workstation</span>
           </div>
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">Meeting Room</span>
+            <svg width="16" height="14" className="mr-2">
+              <polygon 
+                points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                fill="#10b981" 
+                stroke="#d1d5db" 
+                strokeWidth="0.5"
+              />
+            </svg>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Meeting Room</span>
           </div>
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-purple-500 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">Cubicle</span>
+            <svg width="16" height="14" className="mr-2">
+              <polygon 
+                points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                fill="#8b5cf6" 
+                stroke="#d1d5db" 
+                strokeWidth="0.5"
+              />
+            </svg>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Cubicle</span>
+          </div>
+          <div className="flex items-center">
+            <svg width="16" height="14" className="mr-2">
+              <polygon 
+                points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                fill="#f3f4f6" 
+                stroke="#d1d5db" 
+                strokeWidth="0.5"
+              />
+            </svg>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Invalid Space</span>
+          </div>
+          <div className="flex items-center">
+            <svg width="16" height="14" className="mr-2">
+              <polygon 
+                points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                fill="#f9fafb" 
+                stroke="#f59e0b" 
+                strokeWidth="2"
+              />
+            </svg>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Selected</span>
           </div>
         </div>
       </div>

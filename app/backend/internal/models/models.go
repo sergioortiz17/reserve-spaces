@@ -24,7 +24,7 @@ type Space struct {
 	ID           uuid.UUID     `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v4()"`
 	MapID        uuid.UUID     `json:"map_id" gorm:"type:uuid;not null"`
 	Name         string        `json:"name" gorm:"not null"`
-	Type         string        `json:"type" gorm:"not null;check:type IN ('workstation', 'meeting_room', 'cubicle')"`
+	Type         string        `json:"type" gorm:"not null;check:type IN ('workstation', 'meeting_room', 'cubicle', 'invalid_space')"`
 	X            int           `json:"x" gorm:"not null"`
 	Y            int           `json:"y" gorm:"not null"`
 	Width        int           `json:"width" gorm:"default:1"`
@@ -91,7 +91,7 @@ type UpdateMapRequest struct {
 type CreateSpaceRequest struct {
 	MapID    uuid.UUID `json:"map_id" binding:"required"`
 	Name     string    `json:"name" binding:"required"`
-	Type     string    `json:"type" binding:"required,oneof=workstation meeting_room cubicle"`
+	Type     string    `json:"type" binding:"required,oneof=workstation meeting_room cubicle invalid_space"`
 	X        int       `json:"x" binding:"required"`
 	Y        int       `json:"y" binding:"required"`
 	Width    int       `json:"width"`
@@ -102,7 +102,7 @@ type CreateSpaceRequest struct {
 // UpdateSpaceRequest represents the request payload for updating a space
 type UpdateSpaceRequest struct {
 	Name     string `json:"name"`
-	Type     string `json:"type" binding:"omitempty,oneof=workstation meeting_room cubicle"`
+	Type     string `json:"type" binding:"omitempty,oneof=workstation meeting_room cubicle invalid_space"`
 	X        *int   `json:"x"`
 	Y        *int   `json:"y"`
 	Width    *int   `json:"width"`

@@ -7,6 +7,7 @@ import { createReservation } from '../utils/api';
 import toast from 'react-hot-toast';
 import { format, addDays } from 'date-fns';
 import type { Space } from '../types';
+import HexagonGrid from '../components/HexagonGrid';
 
 const Reservations: React.FC = () => {
   const { t } = useTranslation();
@@ -131,14 +132,52 @@ const Reservations: React.FC = () => {
     setShowSpaceInfo(true);
   };
 
+  const getHexColor = (_x: number, _y: number, space?: any, isReserved?: boolean) => {
+    if (!space) return '#f9fafb'; // Empty space - light gray
+    
+    // Invalid spaces are never reservable and appear invisible
+    if (space.type === 'invalid_space') return '#f3f4f6'; // Same as background
+    
+    if (isReserved) return '#ef4444'; // Reserved - red
+    
+    // Space colors by type
+    switch (space.type) {
+      case 'workstation': return '#3b82f6'; // Blue
+      case 'meeting_room': return '#10b981'; // Green
+      case 'cubicle': return '#8b5cf6'; // Purple
+      default: return '#6b7280'; // Gray
+    }
+  };
+
+  const getHexTitle = (_x: number, _y: number, space?: any, isReserved?: boolean) => {
+    if (!space) return t('reservations.emptySpace');
+    if (space.type === 'invalid_space') return t('reservations.invalidSpaceDesc');
+    return `${space.name} ${isReserved ? `(${t('reservations.reserved')})` : `(${t('reservations.available')})`} - ${t('reservations.clickForDetails')}`;
+  };
+
+  const handleHexClick = (_x: number, _y: number, space?: any) => {
+    if (space && space.type !== 'invalid_space' && !isSpaceReserved(space.id)) {
+      handleSpaceClick(space);
+    }
+  };
+
+  const handleHexDoubleClick = (_x: number, _y: number, space?: any) => {
+    handleSpaceInfoClick(space || null);
+  };
+
+  const handleHexRightClick = (e: React.MouseEvent, _x: number, _y: number, space?: any) => {
+    e.preventDefault();
+    handleSpaceInfoClick(space || null);
+  };
+
   const renderOfficeMap = () => {
-    if (!currentMap || spaces.length === 0) {
+    if (!currentMap) {
       return (
         <div className="text-center py-12">
           <MapPin className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{t('reservations.noSpacesAvailable')}</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{t('reservations.noMapSelected')}</h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {!currentMap ? t('reservations.pleaseSelectMap') : t('reservations.thisMapHasNoSpaces')}
+            {t('reservations.pleaseSelectMap')}
           </p>
         </div>
       );
@@ -146,44 +185,24 @@ const Reservations: React.FC = () => {
 
     const gridWidth = currentMap.json_data.grid?.width || 20;
     const gridHeight = currentMap.json_data.grid?.height || 15;
-    
-    const cells = [];
-    for (let y = 0; y < gridHeight; y++) {
-      for (let x = 0; x < gridWidth; x++) {
-        const space = spaces.find(space => 
-          x >= space.x && x < space.x + space.width &&
-          y >= space.y && y < space.y + space.height
-        );
 
-        const isReserved = space ? isSpaceReserved(space.id) : false;
-
-        cells.push(
-          <div
-            key={`${x}-${y}`}
-            className={`
-              w-10 h-10 border border-gray-200 dark:border-gray-600 cursor-pointer transition-all duration-200
-              ${space 
-                ? isReserved
-                  ? 'bg-red-500 opacity-75 cursor-not-allowed border-red-600'
-                  : `${getSpaceColor(space.type)} hover:opacity-80 border-gray-400`
-                : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }
-            `}
-            onClick={() => space && !isReserved && handleSpaceClick(space)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              handleSpaceInfoClick(space || null);
-            }}
-            onDoubleClick={() => handleSpaceInfoClick(space || null)}
-            title={space 
-              ? `${space.name} ${isReserved ? `(${t('reservations.reserved')})` : `(${t('reservations.available')})`} - ${t('reservations.clickForDetails')}`
-              : t('reservations.emptySpace')
-            }
-          />
-        );
-      }
-    }
-    return cells;
+    return (
+      <div className="flex justify-center">
+        <HexagonGrid
+          width={gridWidth}
+          height={gridHeight}
+          hexSize={20}
+          spaces={spaces}
+          reservations={reservations}
+          selectedDate={selectedDate}
+          onHexClick={handleHexClick}
+          onHexDoubleClick={handleHexDoubleClick}
+          onHexRightClick={handleHexRightClick}
+          getHexColor={getHexColor}
+          getHexTitle={getHexTitle}
+        />
+      </div>
+    );
   };
 
   const todayReservations = reservations.filter(r => r.date === selectedDate);
@@ -267,33 +286,76 @@ const Reservations: React.FC = () => {
             </div>
           </div>
           
-          <div 
-            className="grid gap-0 border-2 border-gray-300 dark:border-gray-600 inline-block"
-            style={{ 
-              gridTemplateColumns: `repeat(${currentMap.json_data.grid?.width || 20}, 1fr)`,
-              gridTemplateRows: `repeat(${currentMap.json_data.grid?.height || 15}, 1fr)`
-            }}
-          >
-            {renderOfficeMap()}
-          </div>
+          {renderOfficeMap()}
 
           {/* Legend */}
           <div className="mt-4 flex flex-wrap gap-6">
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
+              <svg width="16" height="14" className="mr-2">
+                <polygon 
+                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                  fill="#3b82f6" 
+                  stroke="#d1d5db" 
+                  strokeWidth="0.5"
+                />
+              </svg>
               <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.workstation')}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
+              <svg width="16" height="14" className="mr-2">
+                <polygon 
+                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                  fill="#10b981" 
+                  stroke="#d1d5db" 
+                  strokeWidth="0.5"
+                />
+              </svg>
               <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.meetingRoom')}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-purple-500 rounded mr-2"></div>
+              <svg width="16" height="14" className="mr-2">
+                <polygon 
+                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                  fill="#8b5cf6" 
+                  stroke="#d1d5db" 
+                  strokeWidth="0.5"
+                />
+              </svg>
               <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.cubicle')}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-red-500 opacity-75 rounded mr-2"></div>
+              <svg width="16" height="14" className="mr-2">
+                <polygon 
+                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                  fill="#f3f4f6" 
+                  stroke="#d1d5db" 
+                  strokeWidth="0.5"
+                />
+              </svg>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.invalidSpace')}</span>
+            </div>
+            <div className="flex items-center">
+              <svg width="16" height="14" className="mr-2">
+                <polygon 
+                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                  fill="#ef4444" 
+                  stroke="#d1d5db" 
+                  strokeWidth="0.5"
+                  opacity="0.75"
+                />
+              </svg>
               <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.reserved')}</span>
+            </div>
+            <div className="flex items-center">
+              <svg width="16" height="14" className="mr-2">
+                <polygon 
+                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                  fill="#f9fafb" 
+                  stroke="#d1d5db" 
+                  strokeWidth="0.5"
+                />
+              </svg>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.emptySpace')}</span>
             </div>
           </div>
         </div>
