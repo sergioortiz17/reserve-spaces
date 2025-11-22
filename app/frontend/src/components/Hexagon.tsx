@@ -42,7 +42,7 @@ const Hexagon: React.FC<HexagonProps> = ({
   ].map(point => point.join(',')).join(' ');
 
   const selectedStyle = isSelected ? {
-    filter: 'brightness(1.3) drop-shadow(0 0 8px rgba(245, 158, 11, 0.8))',
+    filter: 'brightness(1.3) drop-shadow(0 0 8px rgba(59, 130, 246, 0.8))',
     transform: 'scale(1.1)',
     zIndex: 10
   } : {};
@@ -79,7 +79,7 @@ const Hexagon: React.FC<HexagonProps> = ({
           strokeWidth={borderWidth}
           className={`transition-all duration-300 ${isSelected ? 'drop-shadow-lg' : ''}`}
           style={isSelected ? {
-            filter: 'drop-shadow(0 0 6px rgba(245, 158, 11, 0.9))'
+            filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.9))'
           } : {}}
         />
       </svg>

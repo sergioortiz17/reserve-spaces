@@ -115,7 +115,7 @@ const HexagonGrid: React.FC<HexagonGridProps> = ({
             <Hexagon
               size={hexSize}
               color={color}
-              borderColor={isSelected ? '#f59e0b' : '#d1d5db'}
+              borderColor={isSelected ? '#3b82f6' : '#d1d5db'}
               borderWidth={isSelected ? 3 : 1}
               isSelected={isSelected}
               title={title}
