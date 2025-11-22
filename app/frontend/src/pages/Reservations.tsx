@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
@@ -11,7 +11,6 @@ import HexagonGrid from '../components/HexagonGrid';
 import { 
   findMeetingRoomGroup, 
   getMeetingRoomGroupName, 
-  isMeetingRoomGroupReserved,
   getTotalSpaceCount,
   getReservedSpaceCount,
   getAvailableSpaceCount
@@ -107,38 +106,37 @@ const Reservations: React.FC = () => {
     try {
       setLoading(true);
       
-      // Check if this is a meeting room group
-      if (selectedSpace.type === 'meeting_room' && selectedSpace._group) {
-        // Create reservations for all spaces in the group
-        const group = selectedSpace._group;
-        const reservationPromises = group.map((space: Space) => 
-          createReservation({
-            space_id: space.id,
-            user_id: userName.trim(),
-            user_name: userName.trim(),
-            date: selectedDate,
-            start_time: startTime,
-            end_time: endTime,
-            status: 'active'
-          })
-        );
-        
-        await Promise.all(reservationPromises);
-        toast.success(`${t('reservations.reservationCreated')} (${group.length} spaces)`);
-      } else {
-        // Single space reservation
-        await createReservation({
-          space_id: selectedSpace.id,
-          user_id: userName.trim(),
-          user_name: userName.trim(),
-          date: selectedDate,
-          start_time: startTime,
-          end_time: endTime,
-          status: 'active'
-        });
-        
-        toast.success(t('reservations.reservationCreated'));
+      // For meeting room groups, always use the parent space_id (first space in group)
+      // This ensures only ONE reservation is created for the entire meeting room
+      let spaceIdToReserve = selectedSpace.id;
+      
+      // Check if this is a meeting room group in multiple ways
+      if (selectedSpace.type === 'meeting_room') {
+        // If it has _isGroupSpace flag and _group, use the parent
+        if (selectedSpace._isGroupSpace && selectedSpace._group && selectedSpace._group.length > 0) {
+          spaceIdToReserve = selectedSpace._group[0].id;
+        } else {
+          // Otherwise, find the group dynamically
+          const group = findMeetingRoomGroup(spaces, selectedSpace);
+          if (group.length > 1) {
+            // This is part of a group, use the first space as parent
+            spaceIdToReserve = group[0].id;
+          }
+        }
       }
+      
+      // Create a SINGLE reservation using the parent space_id
+      await createReservation({
+        space_id: spaceIdToReserve,
+        user_id: userName.trim(),
+        user_name: userName.trim(),
+        date: selectedDate,
+        start_time: startTime,
+        end_time: endTime,
+        status: 'active'
+      });
+      
+      toast.success(t('reservations.reservationCreated'));
 
       setShowReservationModal(false);
       setSelectedSpace(null);
@@ -199,13 +197,20 @@ const Reservations: React.FC = () => {
     }
   };
 
-  const handleDeleteReservation = async (reservationId: string) => {
+  const handleDeleteReservation = async (reservation: any) => {
     if (!confirm(t('reservations.confirmDelete'))) return;
 
     setLoading(true);
     try {
-      await deleteReservation(reservationId);
-      toast.success(t('reservations.reservationDeleted'));
+      if (reservation._isGroupReservation && reservation._groupReservations) {
+        // For group reservations, delete all individual reservations
+        await Promise.all(reservation._groupReservations.map((gr: any) => deleteReservation(gr.id)));
+        toast.success(`${t('reservations.reservationDeleted')} (${reservation._groupReservations.length} spaces)`);
+      } else {
+        // Single reservation
+        await deleteReservation(reservation.id);
+        toast.success(t('reservations.reservationDeleted'));
+      }
       
       // Refresh reservations
       await fetchReservations();
@@ -227,9 +232,21 @@ const Reservations: React.FC = () => {
   };
 
   const isSpaceOrGroupReserved = (space: any) => {
+    // For meeting room groups represented as a single space, check the parent space_id
+    if (space._isGroupSpace && space._group) {
+      return isSpaceReserved(space._group[0].id);
+    }
+    
+    // For individual meeting room hexagons, find the group and check the parent space_id
     if (space.type === 'meeting_room') {
       const group = findMeetingRoomGroup(spaces, space);
-      return isMeetingRoomGroupReserved(group, reservations, selectedDate);
+      if (group.length > 1) {
+        // This is part of a group, check if the parent (first space) is reserved
+        return isSpaceReserved(group[0].id);
+      } else {
+        // Single meeting room, check normally
+        return isSpaceReserved(space.id);
+      }
     }
     return isSpaceReserved(space.id);
   };
@@ -250,7 +267,13 @@ const Reservations: React.FC = () => {
       return;
     }
 
-    const spaceReservations = getSpaceReservations(space.id);
+    // For meeting room groups, use the parent space_id (first space in group)
+    // to get reservations, since we only create one reservation per group
+    const spaceIdForReservations = space._isGroupSpace && space._group 
+      ? space._group[0].id  // Use parent space_id for groups
+      : space.id;           // Use the space's own ID for regular spaces
+    
+    const spaceReservations = getSpaceReservations(spaceIdForReservations);
     setSelectedSpaceInfo({space, reservations: spaceReservations});
     setShowSpaceInfo(true);
   };
@@ -287,24 +310,23 @@ const Reservations: React.FC = () => {
   const handleHexClick = (_x: number, _y: number, space?: any) => {
     if (space && space.type !== 'invalid_space') {
       if (space.type === 'meeting_room') {
-        // For meeting rooms, find the group and check if any in the group is reserved
+        // For meeting rooms, find the group and create a virtual space representing the whole group
         const group = findMeetingRoomGroup(spaces, space);
-        const groupReserved = isMeetingRoomGroupReserved(group, reservations, selectedDate);
         
-        if (!groupReserved) {
-          // Pass the entire group as the selected space
-          const groupSpace = {
-            ...space,
-            name: getMeetingRoomGroupName(group),
-            _group: group // Store the group for later use
-          };
-          handleSpaceClick(groupSpace);
-        }
+        // Create a virtual space that represents the entire meeting room group
+        // Use the first space in the group as the representative (parent space)
+        const parentSpace: Space = {
+          ...group[0], // Use first space as parent
+          name: getMeetingRoomGroupName(group),
+          _group: group, // Store the group for reference
+          _isGroupSpace: true // Flag to indicate this represents a group
+        };
+        
+        // Open the info panel instead of creating reservations directly
+        handleSpaceInfoClick(parentSpace);
       } else {
-        // For other space types, use normal logic
-        if (!isSpaceReserved(space.id)) {
-          handleSpaceClick(space);
-        }
+        // For other space types, open info panel
+        handleSpaceInfoClick(space);
       }
     }
   };
@@ -353,12 +375,87 @@ const Reservations: React.FC = () => {
     );
   };
 
-  // Filter reservations for the selected date (handle ISO date format, only active reservations)
-  const todayReservations = reservations.filter(r => {
-    const reservationDate = r.date.split('T')[0]; // Extract date part from ISO string
-    return reservationDate === selectedDate && r.status === 'active';
+  // Group Meeting Room reservations to show as single logical units in history
+// =============================================
+// FIX REAL: SOLO UNA RESERVA POR MEETING ROOM
+// =============================================
+// =============================================
+// FIX DEFINITIVO: UNA SOLA FILA POR MEETING ROOM
+// =============================================
+// =============================================================
+// GROUP BY PREFIX — ALL meeting rooms become one logical space
+// =============================================================
+const todayReservations = useMemo(() => {
+  const normalizeDate = (d: string) => d.split("T")[0];
+
+  // 1. Filter reservations for selected date
+  const filtered = reservations.filter(r => {
+    const d = normalizeDate(r.date);
+    return d === selectedDate && r.status === "active";
   });
-  
+
+  // 2. Build prefix-based parent space map
+  const meetingRoomParents: Record<string, string> = {};
+
+  spaces.forEach(space => {
+    if (space.type === "meeting_room") {
+      // Remove trailing numbers → "meeting room 38" → "meeting room"
+      const base = space.name.replace(/\s*\d+$/, "").trim().toLowerCase();
+
+      // First encountered becomes parent
+      if (!meetingRoomParents[base]) {
+        meetingRoomParents[base] = space.id;
+      }
+    }
+  });
+
+  // 3. Normalize reservations → remap to parent space
+  const remapped = filtered.map(res => {
+    const sp = spaces.find(s => s.id === res.space_id);
+    if (!sp) return res;
+
+    if (sp.type === "meeting_room") {
+      const base = sp.name.replace(/\s*\d+$/, "").trim().toLowerCase();
+      const parent = meetingRoomParents[base];
+      return { ...res, space_id: parent };
+    }
+
+    return res;
+  });
+
+  // 4. Group by parent space_id + user + time
+  const grouped = new Map<string, any>();
+
+  remapped.forEach(r => {
+    const key = `${r.space_id}-${r.user_name}-${r.start_time}-${r.end_time}`;
+    if (!grouped.has(key)) grouped.set(key, r);
+  });
+
+  // 5. Apply display information (group name)
+  const finalList = Array.from(grouped.values()).map(r => {
+    const space = spaces.find(s => s.id === r.space_id);
+
+    if (space?.type === "meeting_room") {
+      const baseName = space.name.replace(/\s*\d+$/, "").trim();
+
+      return {
+        ...r,
+        _isGroupReservation: true,
+        _groupName: baseName,
+        _groupSize: spaces.filter(s =>
+          s.type === "meeting_room" &&
+          s.name.replace(/\s*\d+$/, "").trim().toLowerCase() ===
+          baseName.toLowerCase()
+        ).length
+      };
+    }
+
+    return r;
+  });
+
+  return finalList;
+}, [reservations, selectedDate, spaces]);
+
   // Calculate correct space counts (meeting room groups count as 1)
   const totalLogicalSpaces = getTotalSpaceCount(spaces);
   const reservedLogicalSpaces = getReservedSpaceCount(spaces, reservations, selectedDate);
@@ -563,16 +660,30 @@ const Reservations: React.FC = () => {
           </div>
         ) : todayReservations.length > 0 ? (
           <div className="space-y-3">
-            {todayReservations.map(reservation => {
+            {todayReservations.map((reservation, index) => {
               const space = spaces.find(s => s.id === reservation.space_id);
+              const displayName = reservation._isGroupReservation 
+                ? reservation._groupName || `Meeting Room Group (${reservation._groupSize} spaces)`
+                : space?.name || 'Unknown Space';
+              
+              // Use a unique key for grouped reservations
+              const uniqueKey = reservation._isGroupReservation 
+                ? `group-${reservation.user_name}-${reservation.date}-${reservation.start_time}-${index}`
+                : reservation.id;
+              
               return (
-                <div key={reservation.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500">
+                <div key={uniqueKey} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500">
                   <div className="flex items-center space-x-4 flex-1">
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                       <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {space?.name || 'Unknown Space'}
+                        {displayName}
                       </span>
+                      {reservation._isGroupReservation && (
+                        <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-full">
+                          Group
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
@@ -590,13 +701,18 @@ const Reservations: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => handleEditReservation(reservation)}
-                      className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                      title={t('reservations.editReservation')}
+                      disabled={reservation._isGroupReservation}
+                      className={`p-2 rounded-lg transition-colors ${
+                        reservation._isGroupReservation
+                          ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                          : 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                      }`}
+                      title={reservation._isGroupReservation ? 'Group reservations cannot be edited individually' : t('reservations.editReservation')}
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteReservation(reservation.id)}
+                      onClick={() => handleDeleteReservation(reservation)}
                       className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                       title={t('reservations.deleteReservation')}
                     >

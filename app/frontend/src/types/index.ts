@@ -39,6 +39,7 @@ export interface Space {
   updated_at: string;
   reservations?: Reservation[];
   _group?: Space[]; // For meeting room groups
+  _isGroupSpace?: boolean; // Flag to indicate this space represents a group
 }
 
 export interface Reservation {
