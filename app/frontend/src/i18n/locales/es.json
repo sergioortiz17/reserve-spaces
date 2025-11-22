@@ -2,7 +2,9 @@
   "nav": {
     "dashboard": "Panel",
     "mapBuilder": "Constructor de Mapas",
-    "reservations": "Reservaciones"
+    "reservations": "Reservaciones",
+    "pinSidebar": "Fijar barra lateral",
+    "unpinSidebar": "Desfijar barra lateral"
   },
   "common": {
     "loading": "Cargando...",

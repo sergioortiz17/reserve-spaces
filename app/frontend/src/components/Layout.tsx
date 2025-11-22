@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutGrid, 
@@ -6,7 +6,9 @@ import {
   Settings,
   Building2,
   Moon,
-  Sun
+  Sun,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
@@ -21,6 +23,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, toggleTheme } = useTheme();
   const { t } = useTranslation();
 
+  // Load pinned state from localStorage
+  const [isPinned, setIsPinned] = useState(() => {
+    const saved = localStorage.getItem('sidebarPinned');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  const [isHovered, setIsHovered] = useState(false);
+  const isExpanded = isPinned || isHovered;
+
+  // Save pinned state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebarPinned', JSON.stringify(isPinned));
+  }, [isPinned]);
+
   const navigation = [
     { name: t('nav.dashboard'), href: '/dashboard', icon: LayoutGrid },
     { name: t('nav.mapBuilder'), href: '/map-builder', icon: Building2 },
@@ -28,6 +44,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const togglePin = () => {
+    setIsPinned(!isPinned);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -64,8 +84,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <div className="flex">
         {/* Sidebar */}
-        <nav className="w-64 bg-white dark:bg-gray-800 shadow-sm min-h-screen border-r border-gray-200 dark:border-gray-700">
-          <div className="p-4">
+        <nav
+          className={`bg-white dark:bg-gray-800 shadow-sm min-h-screen border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out relative ${
+            isExpanded ? 'w-64' : 'w-16'
+          }`}
+          onMouseEnter={() => !isPinned && setIsHovered(true)}
+          onMouseLeave={() => !isPinned && setIsHovered(false)}
+        >
+          {/* Pin/Unpin button */}
+          <button
+            onClick={togglePin}
+            className={`absolute top-2 right-2 p-1.5 rounded-md transition-colors z-10 ${
+              isPinned
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+            title={isPinned ? t('nav.unpinSidebar') : t('nav.pinSidebar')}
+          >
+            {isPinned ? (
+              <Pin className="h-4 w-4" />
+            ) : (
+              <PinOff className="h-4 w-4" />
+            )}
+          </button>
+
+          <div className="p-4 pt-10">
             <ul className="space-y-2">
               {navigation.map((item) => {
                 const Icon = item.icon;
@@ -73,14 +116,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <li key={item.name}>
                     <Link
                       to={item.href}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors group ${
                         isActive(item.href)
                           ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 border-r-2 border-primary-600'
                           : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
                       }`}
+                      title={!isExpanded ? item.name : undefined}
                     >
-                      <Icon className="h-5 w-5 mr-3" />
-                      {item.name}
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      <span
+                        className={`ml-3 transition-opacity duration-200 ${
+                          isExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        }`}
+                      >
+                        {item.name}
+                      </span>
+                      {!isExpanded && (
+                        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                          {item.name}
+                        </div>
+                      )}
                     </Link>
                   </li>
                 );

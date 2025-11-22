@@ -2,7 +2,9 @@
   "nav": {
     "dashboard": "Dashboard",
     "mapBuilder": "Map Builder",
-    "reservations": "Reservations"
+    "reservations": "Reservations",
+    "pinSidebar": "Pin sidebar",
+    "unpinSidebar": "Unpin sidebar"
   },
   "common": {
     "loading": "Loading...",
