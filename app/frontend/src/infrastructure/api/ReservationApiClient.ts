@@ -3,7 +3,7 @@
  * Implements the ReservationRepository interface using HTTP
  */
 import axios from 'axios';
-import type { Reservation } from '../../domain/entities/OfficeMap';
+import type { Reservation } from '../../types';
 import type {
   ReservationRepository,
   ReservationFilters,

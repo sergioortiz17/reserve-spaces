@@ -2,7 +2,7 @@
  * Repository interface for reservations
  * Defines the contract for reservation data operations
  */
-import type { Reservation } from '../entities/OfficeMap';
+import type { Reservation } from '../../types';
 
 export interface ReservationFilters {
   from?: string;

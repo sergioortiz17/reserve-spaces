@@ -2,7 +2,7 @@
  * Application layer: Reservation service
  * Contains business logic for reservations
  */
-import type { Reservation } from '../../domain/entities/OfficeMap';
+import type { Reservation } from '../../types';
 import type { ReservationRepository, ReservationFilters } from '../../domain/repositories/ReservationRepository';
 
 export class ReservationService {

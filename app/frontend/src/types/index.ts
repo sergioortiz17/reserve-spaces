@@ -46,7 +46,7 @@ export interface Reservation {
   id: string;
   space_id: string;
   user_id: string;
-  user_name?: string;
+  user_name: string;
   date: string;
   start_time?: string;
   end_time?: string;
@@ -60,4 +60,7 @@ export interface Reservation {
   _groupReservations?: Reservation[];
   _groupName?: string;
   _groupSize?: number;
+  // For import/export
+  space_name?: string;
+  space_type?: string;
 }
