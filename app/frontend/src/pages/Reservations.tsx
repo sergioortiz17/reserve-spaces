@@ -682,7 +682,7 @@ const todayReservations = useMemo(() => {
               space_name: spaceNameIndex !== -1 ? values[spaceNameIndex] : null,
               user_id: values[userIdIndex],
               user_name: values[userNameIndex] || values[userIdIndex],
-              date: values[dateIndex] || selectedDate,
+              date: selectedDate, // Always use the currently selected date
               start_time: values[startTimeIndex] || '',
               end_time: values[endTimeIndex] || '',
               notes: values[notesIndex] || ''
@@ -751,9 +751,7 @@ const todayReservations = useMemo(() => {
               continue;
             }
 
-            // Use the date from reservation or fallback to selected date
-            const reservationDate = reservation.date || selectedDate;
-            
+            // Always use the currently selected date, ignore date from file
             // Normalize time formats to HH:MM before sending to backend
             const normalizedStartTime = normalizeTime(reservation.start_time) || '09:00';
             const normalizedEndTime = normalizeTime(reservation.end_time) || '10:00';
@@ -762,7 +760,7 @@ const todayReservations = useMemo(() => {
               space_id: spaceId,
               user_id: reservation.user_id,
               user_name: reservation.user_name || reservation.user_id,
-              date: reservationDate,
+              date: selectedDate, // Always use the currently selected date
               start_time: normalizedStartTime,
               end_time: normalizedEndTime,
               notes: reservation.notes || '',

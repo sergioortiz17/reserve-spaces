@@ -19,10 +19,12 @@ RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
 
 # Final stage
-FROM alpine:3.19
+FROM alpine:3.20
 
 # Update package index and install dependencies
-RUN apk update && apk --no-cache add ca-certificates tzdata
+# Use a more recent Alpine version for better stability
+RUN apk update --no-cache && \
+    apk --no-cache add ca-certificates tzdata
 
 WORKDIR /root/
 
