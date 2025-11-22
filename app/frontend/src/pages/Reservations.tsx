@@ -558,6 +558,17 @@ const todayReservations = useMemo(() => {
     });
   };
 
+  // Helper function to normalize time format to HH:MM
+  const normalizeTime = (time: string | undefined | null): string => {
+    if (!time) return '';
+    // Remove any seconds or milliseconds: "09:00:00" -> "09:00", "09:00" -> "09:00"
+    const parts = time.split(':');
+    if (parts.length >= 2) {
+      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+    return time;
+  };
+
   // Export Day: Export all reservations for the selected day to CSV
   const handleExportDay = () => {
     if (!currentMap) {
@@ -582,20 +593,20 @@ const todayReservations = useMemo(() => {
         user_id: r.user_id,
         user_name: r.user_name || '',
         date: r.date.split('T')[0],
-        start_time: r.start_time || '',
-        end_time: r.end_time || '',
+        start_time: normalizeTime(r.start_time),
+        end_time: normalizeTime(r.end_time),
         notes: r.notes || ''
       };
     });
 
-    // Create CSV content
-    const headers = ['Space ID', 'Space Name', 'Space Type', 'User ID', 'User Name', 'Date', 'Start Time', 'End Time', 'Notes'];
+    // Create CSV content - prioritize Space Name over Space ID for easier import
+    const headers = ['Space Name', 'Space Type', 'Space ID', 'User ID', 'User Name', 'Date', 'Start Time', 'End Time', 'Notes'];
     const csvRows = [
       headers.join(','),
       ...reservationsWithSpaceNames.map(r => [
-        r.space_id,
         `"${r.space_name.replace(/"/g, '""')}"`,
         r.space_type,
+        r.space_id,
         r.user_id,
         `"${r.user_name.replace(/"/g, '""')}"`,
         r.date,
@@ -648,6 +659,7 @@ const todayReservations = useMemo(() => {
 
           const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
           const spaceIdIndex = headers.findIndex(h => h.toLowerCase() === 'space id');
+          const spaceNameIndex = headers.findIndex(h => h.toLowerCase() === 'space name');
           const userIdIndex = headers.findIndex(h => h.toLowerCase() === 'user id');
           const userNameIndex = headers.findIndex(h => h.toLowerCase() === 'user name');
           const dateIndex = headers.findIndex(h => h.toLowerCase() === 'date');
@@ -655,8 +667,8 @@ const todayReservations = useMemo(() => {
           const endTimeIndex = headers.findIndex(h => h.toLowerCase() === 'end time');
           const notesIndex = headers.findIndex(h => h.toLowerCase() === 'notes');
 
-          if (spaceIdIndex === -1 || userIdIndex === -1 || dateIndex === -1) {
-            toast.error('CSV file must have columns: Space ID, User ID, Date');
+          if ((spaceIdIndex === -1 && spaceNameIndex === -1) || userIdIndex === -1 || dateIndex === -1) {
+            toast.error('CSV file must have columns: Space ID or Space Name, User ID, Date');
             return;
           }
 
@@ -666,7 +678,8 @@ const todayReservations = useMemo(() => {
             if (values.length < headers.length) continue;
 
             reservationsToImport.push({
-              space_id: values[spaceIdIndex],
+              space_id: spaceIdIndex !== -1 ? values[spaceIdIndex] : null,
+              space_name: spaceNameIndex !== -1 ? values[spaceNameIndex] : null,
               user_id: values[userIdIndex],
               user_name: values[userNameIndex] || values[userIdIndex],
               date: values[dateIndex] || selectedDate,
@@ -705,26 +718,61 @@ const todayReservations = useMemo(() => {
         setLoading(true);
         let successCount = 0;
         let errorCount = 0;
+        const errors: string[] = [];
 
         // Import each reservation
         for (const reservation of reservationsToImport) {
           try {
+            // Find the space by name first (preferred), then by ID (fallback)
+            let spaceId: string | null = null;
+            
+            if (reservation.space_name) {
+              // Try to find by name (case-insensitive)
+              const spaceByName = spaces.find(s => 
+                s.name.toLowerCase().trim() === reservation.space_name.toLowerCase().trim()
+              );
+              if (spaceByName) {
+                spaceId = spaceByName.id;
+              }
+            }
+            
+            // If not found by name, try by ID
+            if (!spaceId && reservation.space_id) {
+              const spaceById = spaces.find(s => s.id === reservation.space_id);
+              if (spaceById) {
+                spaceId = spaceById.id;
+              }
+            }
+
+            if (!spaceId) {
+              const spaceIdentifier = reservation.space_name || reservation.space_id || 'Unknown';
+              errors.push(`Space "${spaceIdentifier}" not found in current map`);
+              errorCount++;
+              continue;
+            }
+
             // Use the date from reservation or fallback to selected date
             const reservationDate = reservation.date || selectedDate;
             
+            // Normalize time formats to HH:MM before sending to backend
+            const normalizedStartTime = normalizeTime(reservation.start_time) || '09:00';
+            const normalizedEndTime = normalizeTime(reservation.end_time) || '10:00';
+            
             await createReservation({
-              space_id: reservation.space_id,
+              space_id: spaceId,
               user_id: reservation.user_id,
               user_name: reservation.user_name || reservation.user_id,
               date: reservationDate,
-              start_time: reservation.start_time || '09:00',
-              end_time: reservation.end_time || '10:00',
+              start_time: normalizedStartTime,
+              end_time: normalizedEndTime,
               notes: reservation.notes || '',
               status: 'active'
             });
             successCount++;
           } catch (error: any) {
             console.error('Error importing reservation:', error);
+            const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+            errors.push(errorMsg);
             errorCount++;
           }
         }
@@ -736,7 +784,11 @@ const todayReservations = useMemo(() => {
         }
 
         if (errorCount > 0) {
-          toast.error(`Imported ${successCount} reservation(s), ${errorCount} failed`);
+          const errorSummary = errors.slice(0, 3).join('; ');
+          const moreErrors = errors.length > 3 ? ` and ${errors.length - 3} more...` : '';
+          toast.error(`Imported ${successCount} reservation(s), ${errorCount} failed. ${errorSummary}${moreErrors}`, {
+            duration: 5000
+          });
         } else {
           toast.success(`Successfully imported ${successCount} reservation(s)`);
         }
