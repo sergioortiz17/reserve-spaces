@@ -3,7 +3,7 @@ import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, Chevron
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
-import { createReservation, updateReservation, deleteReservation, cleanupMeetingRoomReservations } from '../utils/api';
+import { createReservation, updateReservation, deleteReservation } from '../utils/api';
 import toast from 'react-hot-toast';
 import { format, addDays } from 'date-fns';
 import type { Space } from '../types';
@@ -285,23 +285,6 @@ const Reservations: React.FC = () => {
     }
   };
 
-  const handleCleanupMeetingRoom = async (spaceId: string) => {
-    if (!confirm('Are you sure you want to clean up all reservations for this meeting room group? This will cancel ALL reservations (active and cancelled) for the entire group.')) return;
-
-    setLoading(true);
-    try {
-      const result = await cleanupMeetingRoomReservations(spaceId);
-      toast.success(`Cleaned up ${result.cancelled || 0} reservations for ${result.spaces || 0} spaces`);
-      
-      // Refresh reservations
-      await fetchReservations();
-    } catch (error) {
-      toast.error('Failed to cleanup meeting room reservations');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const isSpaceReserved = (spaceId: string) => {
     return reservations.some(reservation => {
       // Convert ISO date to YYYY-MM-DD format for comparison
@@ -548,6 +531,37 @@ const todayReservations = useMemo(() => {
   return finalList;
 }, [reservations, selectedDate, spaces]);
 
+  // Group meeting room reservations by group name
+  const meetingRoomGroupsByName = useMemo(() => {
+    const grouped = new Map<string, {groupName: string, groupSize: number, reservations: any[], spaceIds: string[]}>();
+    
+    todayReservations.filter(r => r._isGroupReservation).forEach(reservation => {
+      const groupName = reservation._groupName || 'Meeting Room Group';
+      const key = `${groupName}-${reservation.user_name}`;
+      
+      if (!grouped.has(key)) {
+        // Get all space IDs from the group
+        const spaceIds = new Set<string>();
+        if (reservation._groupReservations) {
+          reservation._groupReservations.forEach((gr: any) => spaceIds.add(gr.space_id));
+        } else {
+          spaceIds.add(reservation.space_id);
+        }
+        
+        grouped.set(key, {
+          groupName,
+          groupSize: reservation._groupSize || 1,
+          reservations: [],
+          spaceIds: Array.from(spaceIds)
+        });
+      }
+      
+      grouped.get(key)!.reservations.push(reservation);
+    });
+    
+    return Array.from(grouped.values());
+  }, [todayReservations]);
+
   // Group reservations by space_id for display (excluding meeting room groups which are already grouped)
   const reservationsBySpace = useMemo(() => {
     const normalizeDate = (d: string) => d.split("T")[0];
@@ -608,6 +622,26 @@ const todayReservations = useMemo(() => {
       return hexSet;
     }
     
+    // Check if it's a meeting room group
+    if (hoveredReservationKey.startsWith('meeting-group-')) {
+      const group = meetingRoomGroupsByName.find(g => 
+        `meeting-group-${g.groupName}-${g.reservations[0]?.user_name}` === hoveredReservationKey
+      );
+      if (group) {
+        group.spaceIds.forEach(spaceId => {
+          const space = spaces.find(s => s.id === spaceId);
+          if (space) {
+            for (let row = space.y; row < space.y + space.height; row++) {
+              for (let col = space.x; col < space.x + space.width; col++) {
+                hexSet.add(`${col}-${row}`);
+              }
+            }
+          }
+        });
+      }
+      return hexSet;
+    }
+    
     // Find the reservation by key
     const reservation = todayReservations.find((r, idx) => {
       const uniqueKey = r._isGroupReservation 
@@ -646,7 +680,7 @@ const todayReservations = useMemo(() => {
     }
     
     return hexSet;
-  }, [hoveredReservationKey, todayReservations, spaces]);
+  }, [hoveredReservationKey, todayReservations, spaces, meetingRoomGroupsByName]);
 
   // Helper function to get all individual reservations for the selected day
   const getAllDayReservations = () => {
@@ -1186,27 +1220,57 @@ const todayReservations = useMemo(() => {
           </div>
         ) : (todayReservations.length > 0 || reservationsBySpace.length > 0) ? (
           <div className="space-y-3">
-            {/* Meeting Room Groups */}
-            {todayReservations.filter(r => r._isGroupReservation).map((reservation, index) => {
-              const space = spaces.find(s => s.id === reservation.space_id);
-              const displayName = reservation._isGroupReservation 
-                ? reservation._groupName || `Meeting Room Group (${reservation._groupSize} spaces)`
-                : space?.name || 'Unknown Space';
+            {/* Meeting Room Groups - Grouped by name */}
+            {meetingRoomGroupsByName.map((group) => {
+              // Sort reservations by start time
+              const sortedReservations = [...group.reservations].sort((a, b) => {
+                const timeA = a.start_time || '00:00';
+                const timeB = b.start_time || '00:00';
+                return timeA.localeCompare(timeB);
+              });
               
-              // Use a unique key for grouped reservations
-              const uniqueKey = reservation._isGroupReservation 
-                ? `group-${reservation.user_name}-${reservation.date}-${reservation.start_time}-${index}`
-                : reservation.id;
+              const hasMultipleReservations = sortedReservations.length > 1;
+              const firstReservation = sortedReservations[0];
+              const uniqueKey = `meeting-group-${group.groupName}-${firstReservation.user_name}`;
               
               return (
-                <div 
-                  key={uniqueKey} 
-                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500 transition-all duration-300 cursor-pointer"
+                <div
+                  key={uniqueKey}
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-green-500 transition-all duration-300 cursor-pointer"
                   onMouseEnter={() => setHoveredReservationKey(uniqueKey)}
                   onMouseLeave={() => setHoveredReservationKey(null)}
+                  onClick={() => {
+                    // Always open panel for meeting groups to show all reservations
+                    // Get all individual reservations from the group
+                    const allReservations: any[] = [];
+                    sortedReservations.forEach(res => {
+                      if (res._groupReservations) {
+                        allReservations.push(...res._groupReservations);
+                      } else {
+                        allReservations.push(res);
+                      }
+                    });
+                    // Sort by start time
+                    allReservations.sort((a, b) => {
+                      const timeA = a.start_time || '00:00';
+                      const timeB = b.start_time || '00:00';
+                      return timeA.localeCompare(timeB);
+                    });
+                    
+                    // Create a virtual space for the group
+                    const firstSpace = spaces.find(s => group.spaceIds.includes(s.id));
+                    const virtualSpace: Space | null = firstSpace ? {
+                      ...firstSpace,
+                      name: group.groupName,
+                      _isGroupSpace: true
+                    } : null;
+                    
+                    setSelectedSpaceReservations({space: virtualSpace, reservations: allReservations});
+                    setShowReservationsPanel(true);
+                  }}
                   style={{
                     transform: hoveredReservationKey === uniqueKey ? 'scale(1.02)' : 'scale(1)',
-                    boxShadow: hoveredReservationKey === uniqueKey ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+                    boxShadow: hoveredReservationKey === uniqueKey ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none',
                     borderLeftWidth: hoveredReservationKey === uniqueKey ? '6px' : '4px'
                   }}
                 >
@@ -1214,51 +1278,77 @@ const todayReservations = useMemo(() => {
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                       <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {displayName}
+                        {group.groupName}
                       </span>
-                      {reservation._isGroupReservation && (
-                        <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-full">
-                          Group
+                      <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-full">
+                        Group ({group.groupSize} spaces)
+                      </span>
+                      {hasMultipleReservations && (
+                        <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-full">
+                          {sortedReservations.length} {t('reservations.reservations')}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                      <span className="text-gray-700 dark:text-gray-300">
-                        {reservation.user_name}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        {reservation.start_time} - {reservation.end_time}
-                      </span>
-                    </div>
+                    {!hasMultipleReservations && (
+                      <>
+                        <div className="flex items-center space-x-2">
+                          <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-gray-700 dark:text-gray-300">
+                            {firstReservation.user_name}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            {firstReservation.start_time} - {firstReservation.end_time}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            ({t('reservations.clickToViewAll')})
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    {hasMultipleReservations && (
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          {sortedReservations[0].start_time} - {sortedReservations[sortedReservations.length - 1].end_time}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          ({t('reservations.clickToViewAll')})
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleEditReservation(reservation)}
-                      className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                      title={t('reservations.editReservation')}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    {reservation._isGroupReservation && (
-                      <button
-                        onClick={() => handleCleanupMeetingRoom(reservation.space_id)}
-                        className="p-2 text-orange-600 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-200 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
-                        title="Cleanup all reservations for this meeting room group"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
+                    {/* For meeting groups, always show info icon to open panel */}
+                    <div title={t('reservations.clickToViewAll')}>
+                      <Info className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    {!hasMultipleReservations && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditReservation(firstReservation);
+                          }}
+                          className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          title={t('reservations.editReservation')}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteReservation(firstReservation);
+                          }}
+                          className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title={t('reservations.deleteReservation')}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
                     )}
-                    <button
-                      onClick={() => handleDeleteReservation(reservation)}
-                      className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                      title={t('reservations.deleteReservation')}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
               );
