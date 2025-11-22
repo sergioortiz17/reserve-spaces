@@ -42,8 +42,9 @@ const Hexagon: React.FC<HexagonProps> = ({
   ].map(point => point.join(',')).join(' ');
 
   const selectedStyle = isSelected ? {
-    filter: 'brightness(0.8)',
-    transform: 'scale(1.05)'
+    filter: 'brightness(1.3) drop-shadow(0 0 8px rgba(245, 158, 11, 0.8))',
+    transform: 'scale(1.1)',
+    zIndex: 10
   } : {};
 
   const hoveredStyle = isHovered ? {
@@ -53,7 +54,7 @@ const Hexagon: React.FC<HexagonProps> = ({
 
   return (
     <div
-      className={`relative inline-block cursor-pointer transition-all duration-200 ${className}`}
+      className={`relative inline-block cursor-pointer transition-all duration-300 ease-in-out ${className} ${isSelected ? 'animate-pulse' : ''}`}
       style={{
         width: `${width}px`,
         height: `${height}px`,
@@ -76,7 +77,10 @@ const Hexagon: React.FC<HexagonProps> = ({
           fill={color}
           stroke={borderColor}
           strokeWidth={borderWidth}
-          className="transition-all duration-200"
+          className={`transition-all duration-300 ${isSelected ? 'drop-shadow-lg' : ''}`}
+          style={isSelected ? {
+            filter: 'drop-shadow(0 0 6px rgba(245, 158, 11, 0.9))'
+          } : {}}
         />
       </svg>
       {children && (

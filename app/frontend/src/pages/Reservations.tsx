@@ -37,6 +37,7 @@ const Reservations: React.FC = () => {
   const [editUserName, setEditUserName] = useState('');
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
+  const [hoveredReservationKey, setHoveredReservationKey] = useState<string | null>(null);
 
   // Use real spaces from database, not json_data
   const spaces: Space[] = currentMap?.spaces || [];
@@ -448,6 +449,7 @@ const Reservations: React.FC = () => {
           onHexRightClick={handleHexRightClick}
           getHexColor={getHexColor}
           getHexTitle={getHexTitle}
+          selectedHexagons={highlightedHexagons}
         />
       </div>
     );
@@ -548,6 +550,52 @@ const todayReservations = useMemo(() => {
   const totalLogicalSpaces = getTotalSpaceCount(spaces);
   const reservedLogicalSpaces = getReservedSpaceCount(spaces, reservations, selectedDate);
   const availableLogicalSpaces = getAvailableSpaceCount(spaces, reservations, selectedDate);
+
+  // Calculate hexagons to highlight based on hovered reservation
+  const highlightedHexagons = useMemo(() => {
+    if (!hoveredReservationKey) return new Set<string>();
+    
+    // Find the reservation by key
+    const reservation = todayReservations.find((r, idx) => {
+      const uniqueKey = r._isGroupReservation 
+        ? `group-${r.user_name}-${r.date}-${r.start_time}-${idx}`
+        : r.id;
+      return uniqueKey === hoveredReservationKey;
+    });
+    
+    if (!reservation) return new Set<string>();
+    
+    const hexSet = new Set<string>();
+    
+    // If it's a grouped reservation, highlight all spaces in the group
+    if (reservation._isGroupReservation && reservation._groupReservations) {
+      // Get all space IDs from the group reservations
+      const spaceIds = new Set(reservation._groupReservations.map((r: any) => r.space_id));
+      
+      // Find all spaces with those IDs and add their hexagons
+      spaces.forEach(space => {
+        if (spaceIds.has(space.id)) {
+          for (let row = space.y; row < space.y + space.height; row++) {
+            for (let col = space.x; col < space.x + space.width; col++) {
+              hexSet.add(`${col}-${row}`);
+            }
+          }
+        }
+      });
+    } else {
+      // Single reservation - highlight the space's hexagons
+      const space = spaces.find(s => s.id === reservation.space_id);
+      if (space) {
+        for (let row = space.y; row < space.y + space.height; row++) {
+          for (let col = space.x; col < space.x + space.width; col++) {
+            hexSet.add(`${col}-${row}`);
+          }
+        }
+      }
+    }
+    
+    return hexSet;
+  }, [hoveredReservationKey, todayReservations, spaces]);
 
   // Helper function to get all individual reservations for the selected day
   const getAllDayReservations = () => {
@@ -1099,7 +1147,17 @@ const todayReservations = useMemo(() => {
                 : reservation.id;
               
               return (
-                <div key={uniqueKey} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500">
+                <div 
+                  key={uniqueKey} 
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500 transition-all duration-300 cursor-pointer"
+                  onMouseEnter={() => setHoveredReservationKey(uniqueKey)}
+                  onMouseLeave={() => setHoveredReservationKey(null)}
+                  style={{
+                    transform: hoveredReservationKey === uniqueKey ? 'scale(1.02)' : 'scale(1)',
+                    boxShadow: hoveredReservationKey === uniqueKey ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+                    borderLeftWidth: hoveredReservationKey === uniqueKey ? '6px' : '4px'
+                  }}
+                >
                   <div className="flex items-center space-x-4 flex-1">
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
