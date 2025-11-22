@@ -531,13 +531,14 @@ const todayReservations = useMemo(() => {
   return finalList;
 }, [reservations, selectedDate, spaces]);
 
-  // Group meeting room reservations by group name
+  // Group meeting room reservations by group name only (all reservations for the same meeting group in one row)
   const meetingRoomGroupsByName = useMemo(() => {
     const grouped = new Map<string, {groupName: string, groupSize: number, reservations: any[], spaceIds: string[]}>();
     
     todayReservations.filter(r => r._isGroupReservation).forEach(reservation => {
       const groupName = reservation._groupName || 'Meeting Room Group';
-      const key = `${groupName}-${reservation.user_name}`;
+      // Group only by group name, not by user, so all reservations for the same meeting group appear in one row
+      const key = groupName;
       
       if (!grouped.has(key)) {
         // Get all space IDs from the group
@@ -624,9 +625,8 @@ const todayReservations = useMemo(() => {
     
     // Check if it's a meeting room group
     if (hoveredReservationKey.startsWith('meeting-group-')) {
-      const group = meetingRoomGroupsByName.find(g => 
-        `meeting-group-${g.groupName}-${g.reservations[0]?.user_name}` === hoveredReservationKey
-      );
+      const groupName = hoveredReservationKey.replace('meeting-group-', '');
+      const group = meetingRoomGroupsByName.find(g => g.groupName === groupName);
       if (group) {
         group.spaceIds.forEach(spaceId => {
           const space = spaces.find(s => s.id === spaceId);
@@ -1231,7 +1231,8 @@ const todayReservations = useMemo(() => {
               
               const hasMultipleReservations = sortedReservations.length > 1;
               const firstReservation = sortedReservations[0];
-              const uniqueKey = `meeting-group-${group.groupName}-${firstReservation.user_name}`;
+              // Key is just the group name since we group all reservations for the same meeting group together
+              const uniqueKey = `meeting-group-${group.groupName}`;
               
               return (
                 <div
@@ -1289,36 +1290,52 @@ const todayReservations = useMemo(() => {
                         </span>
                       )}
                     </div>
-                    {!hasMultipleReservations && (
-                      <>
-                        <div className="flex items-center space-x-2">
-                          <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                          <span className="text-gray-700 dark:text-gray-300">
-                            {firstReservation.user_name}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                            {firstReservation.start_time} - {firstReservation.end_time}
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            ({t('reservations.clickToViewAll')})
-                          </span>
-                        </div>
-                      </>
-                    )}
-                    {hasMultipleReservations && (
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                          {sortedReservations[0].start_time} - {sortedReservations[sortedReservations.length - 1].end_time}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          ({t('reservations.clickToViewAll')})
-                        </span>
-                      </div>
-                    )}
+                    {/* Show user info only if there's a single user, otherwise show multiple users indicator */}
+                    {(() => {
+                      const uniqueUsers = new Set(sortedReservations.map(r => r.user_name));
+                      const singleUser = uniqueUsers.size === 1;
+                      
+                      if (singleUser && !hasMultipleReservations) {
+                        return (
+                          <>
+                            <div className="flex items-center space-x-2">
+                              <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                              <span className="text-gray-700 dark:text-gray-300">
+                                {firstReservation.user_name}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                {firstReservation.start_time} - {firstReservation.end_time}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                ({t('reservations.clickToViewAll')})
+                              </span>
+                            </div>
+                          </>
+                        );
+                      } else {
+                        return (
+                          <div className="flex items-center space-x-2 flex-wrap">
+                            <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                            <span className="text-gray-700 dark:text-gray-300 text-sm">
+                              {singleUser 
+                                ? firstReservation.user_name 
+                                : `${uniqueUsers.size} ${t('reservations.users')}`
+                              }
+                            </span>
+                            <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                              {sortedReservations[0].start_time} - {sortedReservations[sortedReservations.length - 1].end_time}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              ({t('reservations.clickToViewAll')})
+                            </span>
+                          </div>
+                        );
+                      }
+                    })()}
                   </div>
                   <div className="flex items-center space-x-2">
                     {/* For meeting groups, always show info icon to open panel */}

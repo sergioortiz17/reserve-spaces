@@ -97,7 +97,8 @@
     "inDifferentTime": "at a different time slot",
     "reservations": "reservations",
     "total": "total",
-    "clickToViewAll": "Click to view all"
+    "clickToViewAll": "Click to view all",
+    "users": "users"
   },
   "mapBuilder": {
     "title": "Map Builder",
