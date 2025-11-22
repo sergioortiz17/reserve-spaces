@@ -92,7 +92,9 @@
     "enterUserName": "Enter user name",
     "spaceName": "Space Name",
     "startTime": "Start Time",
-    "endTime": "End Time"
+    "endTime": "End Time",
+    "youCanReserve": "You can reserve",
+    "inDifferentTime": "at a different time slot"
   },
   "mapBuilder": {
     "title": "Map Builder",

@@ -1400,20 +1400,26 @@ const todayReservations = useMemo(() => {
                     )}
                   </div>
 
-                  {/* Action Button */}
-                  {selectedSpaceInfo.reservations.length === 0 && (
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-600">
-                      <button
-                        onClick={() => {
-                          setShowSpaceInfo(false);
-                          handleSpaceClick(selectedSpaceInfo.space!);
-                        }}
-                        className="btn btn-primary w-full"
-                      >
-                        {t('reservations.reserve')} {selectedSpaceInfo.space.name}
-                      </button>
-                    </div>
-                  )}
+                  {/* Action Button - Always show, even if there are existing reservations */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-600">
+                    <button
+                      onClick={() => {
+                        setShowSpaceInfo(false);
+                        handleSpaceClick(selectedSpaceInfo.space!);
+                      }}
+                      className="btn btn-primary w-full"
+                    >
+                      {selectedSpaceInfo.reservations.length > 0 
+                        ? `${t('reservations.reserve')} ${selectedSpaceInfo.space.name} (${t('reservations.available')})`
+                        : `${t('reservations.reserve')} ${selectedSpaceInfo.space.name}`
+                      }
+                    </button>
+                    {selectedSpaceInfo.reservations.length > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+                        {t('reservations.youCanReserve')} {selectedSpaceInfo.space.name} {t('reservations.inDifferentTime')}
+                      </p>
+                    )}
+                  </div>
                 </>
               ) : (
                 <div className="text-center py-8">
