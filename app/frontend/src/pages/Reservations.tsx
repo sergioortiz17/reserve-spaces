@@ -38,6 +38,8 @@ const Reservations: React.FC = () => {
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
   const [hoveredReservationKey, setHoveredReservationKey] = useState<string | null>(null);
+  const [showReservationsPanel, setShowReservationsPanel] = useState(false);
+  const [selectedSpaceReservations, setSelectedSpaceReservations] = useState<{space: Space | null, reservations: any[]}>({space: null, reservations: []});
 
   // Use real spaces from database, not json_data
   const spaces: Space[] = currentMap?.spaces || [];
@@ -546,6 +548,41 @@ const todayReservations = useMemo(() => {
   return finalList;
 }, [reservations, selectedDate, spaces]);
 
+  // Group reservations by space_id for display (excluding meeting room groups which are already grouped)
+  const reservationsBySpace = useMemo(() => {
+    const normalizeDate = (d: string) => d.split("T")[0];
+    const filtered = reservations.filter(r => {
+      const d = normalizeDate(r.date);
+      return d === selectedDate && r.status === "active";
+    });
+
+    const grouped = new Map<string, {space: Space | null, reservations: any[]}>();
+    
+    filtered.forEach(reservation => {
+      // Skip grouped reservations (they are already handled separately)
+      const space = spaces.find(s => s.id === reservation.space_id);
+      if (!space) return;
+      
+      // Skip meeting room groups (they are already grouped)
+      if (space.type === 'meeting_room') {
+        // Check if this is part of a group by looking at the grouped reservations
+        const isPartOfGroup = todayReservations.some(tr => 
+          tr._isGroupReservation && 
+          tr._groupReservations?.some((gr: any) => gr.id === reservation.id)
+        );
+        if (isPartOfGroup) return; // Skip, already in grouped view
+      }
+      
+      const key = reservation.space_id;
+      if (!grouped.has(key)) {
+        grouped.set(key, {space, reservations: []});
+      }
+      grouped.get(key)!.reservations.push(reservation);
+    });
+    
+    return Array.from(grouped.values());
+  }, [reservations, selectedDate, spaces, todayReservations]);
+
   // Calculate correct space counts (meeting room groups count as 1)
   const totalLogicalSpaces = getTotalSpaceCount(spaces);
   const reservedLogicalSpaces = getReservedSpaceCount(spaces, reservations, selectedDate);
@@ -554,6 +591,22 @@ const todayReservations = useMemo(() => {
   // Calculate hexagons to highlight based on hovered reservation
   const highlightedHexagons = useMemo(() => {
     if (!hoveredReservationKey) return new Set<string>();
+    
+    const hexSet = new Set<string>();
+    
+    // Check if it's a space group (for individual spaces with multiple reservations)
+    if (hoveredReservationKey.startsWith('space-')) {
+      const spaceId = hoveredReservationKey.replace('space-', '');
+      const space = spaces.find(s => s.id === spaceId);
+      if (space) {
+        for (let row = space.y; row < space.y + space.height; row++) {
+          for (let col = space.x; col < space.x + space.width; col++) {
+            hexSet.add(`${col}-${row}`);
+          }
+        }
+      }
+      return hexSet;
+    }
     
     // Find the reservation by key
     const reservation = todayReservations.find((r, idx) => {
@@ -564,8 +617,6 @@ const todayReservations = useMemo(() => {
     });
     
     if (!reservation) return new Set<string>();
-    
-    const hexSet = new Set<string>();
     
     // If it's a grouped reservation, highlight all spaces in the group
     if (reservation._isGroupReservation && reservation._groupReservations) {
@@ -1133,9 +1184,10 @@ const todayReservations = useMemo(() => {
           <div className="text-center py-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           </div>
-        ) : todayReservations.length > 0 ? (
+        ) : (todayReservations.length > 0 || reservationsBySpace.length > 0) ? (
           <div className="space-y-3">
-            {todayReservations.map((reservation, index) => {
+            {/* Meeting Room Groups */}
+            {todayReservations.filter(r => r._isGroupReservation).map((reservation, index) => {
               const space = spaces.find(s => s.id === reservation.space_id);
               const displayName = reservation._isGroupReservation 
                 ? reservation._groupName || `Meeting Room Group (${reservation._groupSize} spaces)`
@@ -1211,6 +1263,124 @@ const todayReservations = useMemo(() => {
                 </div>
               );
             })}
+            
+            {/* Individual Space Reservations - Grouped by space */}
+            {reservationsBySpace.map((spaceGroup) => {
+              if (spaceGroup.reservations.length === 0) return null;
+              
+              // Sort reservations by start time
+              const sortedReservations = [...spaceGroup.reservations].sort((a, b) => {
+                const timeA = a.start_time || '00:00';
+                const timeB = b.start_time || '00:00';
+                return timeA.localeCompare(timeB);
+              });
+              
+              const hasMultipleReservations = sortedReservations.length > 1;
+              const firstReservation = sortedReservations[0];
+              const space = spaceGroup.space;
+              
+              return (
+                <div
+                  key={space?.id || 'unknown'}
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500 transition-all duration-300 cursor-pointer"
+                  onMouseEnter={() => {
+                    // Highlight all hexagons for this space
+                    if (space) {
+                      const hexSet = new Set<string>();
+                      for (let row = space.y; row < space.y + space.height; row++) {
+                        for (let col = space.x; col < space.x + space.width; col++) {
+                          hexSet.add(`${col}-${row}`);
+                        }
+                      }
+                      // We'll use a special key for space groups
+                      setHoveredReservationKey(`space-${space.id}`);
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredReservationKey(null)}
+                  onClick={() => {
+                    if (hasMultipleReservations) {
+                      setSelectedSpaceReservations({space, reservations: sortedReservations});
+                      setShowReservationsPanel(true);
+                    }
+                  }}
+                  style={{
+                    transform: hoveredReservationKey === `space-${space?.id}` ? 'scale(1.02)' : 'scale(1)',
+                    boxShadow: hoveredReservationKey === `space-${space?.id}` ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+                    borderLeftWidth: hoveredReservationKey === `space-${space?.id}` ? '6px' : '4px'
+                  }}
+                >
+                  <div className="flex items-center space-x-4 flex-1">
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {space?.name || 'Unknown Space'}
+                      </span>
+                      {hasMultipleReservations && (
+                        <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-full">
+                          {sortedReservations.length} {t('reservations.reservations')}
+                        </span>
+                      )}
+                    </div>
+                    {!hasMultipleReservations && (
+                      <>
+                        <div className="flex items-center space-x-2">
+                          <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-gray-700 dark:text-gray-300">
+                            {firstReservation.user_name}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            {firstReservation.start_time} - {firstReservation.end_time}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    {hasMultipleReservations && (
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          {sortedReservations[0].start_time} - {sortedReservations[sortedReservations.length - 1].end_time}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          ({t('reservations.clickToViewAll')})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {!hasMultipleReservations && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditReservation(firstReservation);
+                          }}
+                          className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          title={t('reservations.editReservation')}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteReservation(firstReservation);
+                          }}
+                          className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title={t('reservations.deleteReservation')}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                    {hasMultipleReservations && (
+                      <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-8">
@@ -1221,6 +1391,104 @@ const todayReservations = useMemo(() => {
           </div>
         )}
       </div>
+
+      {/* Reservations Panel - Right Side */}
+      {showReservationsPanel && selectedSpaceReservations.space && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div 
+            className="flex-1 bg-black bg-opacity-50"
+            onClick={() => setShowReservationsPanel(false)}
+          />
+          
+          {/* Panel */}
+          <div className="w-full max-w-md bg-white dark:bg-gray-800 shadow-xl overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                <MapPin className="h-5 w-5 mr-2" />
+                {selectedSpaceReservations.space.name}
+              </h3>
+              <button
+                onClick={() => setShowReservationsPanel(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-4">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  {selectedSpaceReservations.reservations.length} {t('reservations.reservations')} {t('reservations.total')}
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                {selectedSpaceReservations.reservations.map((reservation) => (
+                  <div 
+                    key={reservation.id} 
+                    className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border-l-4 border-blue-500"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {reservation.start_time} - {reservation.end_time}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {reservation.user_name || reservation.user_id}
+                      </span>
+                    </div>
+                    {reservation.notes && (
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                        <span className="font-medium">{t('reservations.notes')}:</span> {reservation.notes}
+                      </div>
+                    )}
+                    <div className="flex items-center space-x-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <button
+                        onClick={() => {
+                          setShowReservationsPanel(false);
+                          handleEditReservation(reservation);
+                        }}
+                        className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        title={t('reservations.editReservation')}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDeleteReservation(reservation);
+                          // Refresh the panel if there are still reservations
+                          const remaining = selectedSpaceReservations.reservations.filter(r => r.id !== reservation.id);
+                          if (remaining.length === 0) {
+                            setShowReservationsPanel(false);
+                          } else {
+                            setSelectedSpaceReservations({
+                              ...selectedSpaceReservations,
+                              reservations: remaining
+                            });
+                          }
+                        }}
+                        className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        title={t('reservations.deleteReservation')}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Reservation Modal */}
       {showEditModal && editingReservation && (

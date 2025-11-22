@@ -94,7 +94,10 @@
     "startTime": "Start Time",
     "endTime": "End Time",
     "youCanReserve": "You can reserve",
-    "inDifferentTime": "at a different time slot"
+    "inDifferentTime": "at a different time slot",
+    "reservations": "reservations",
+    "total": "total",
+    "clickToViewAll": "Click to view all"
   },
   "mapBuilder": {
     "title": "Map Builder",
