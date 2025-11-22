@@ -202,10 +202,45 @@ const Reservations: React.FC = () => {
 
     setLoading(true);
     try {
-      if (reservation._isGroupReservation && reservation._groupReservations) {
-        // For group reservations, delete all individual reservations
-        await Promise.all(reservation._groupReservations.map((gr: any) => deleteReservation(gr.id)));
-        toast.success(`${t('reservations.reservationDeleted')} (${reservation._groupReservations.length} spaces)`);
+      if (reservation._isGroupReservation) {
+        let reservationsToDelete: any[] = [];
+        
+        if (reservation._groupReservations && reservation._groupReservations.length > 0) {
+          // Use stored group reservations
+          reservationsToDelete = reservation._groupReservations;
+        } else {
+          // Fallback: find all reservations for the same meeting room group with same user/time
+          const space = spaces.find(s => s.id === reservation.space_id);
+          if (space?.type === 'meeting_room') {
+            const baseName = space.name.replace(/\s*\d+$/, "").trim().toLowerCase();
+            const groupSpaces = spaces.filter(s =>
+              s.type === "meeting_room" &&
+              s.name.replace(/\s*\d+$/, "").trim().toLowerCase() === baseName
+            );
+            const groupSpaceIds = groupSpaces.map(s => s.id);
+            
+            // Find all reservations for these spaces with same user/time
+            reservationsToDelete = reservations.filter(r => {
+              const reservationDate = r.date.split('T')[0];
+              return groupSpaceIds.includes(r.space_id) &&
+                     reservationDate === selectedDate &&
+                     r.status === 'active' &&
+                     r.user_name === reservation.user_name &&
+                     r.start_time === reservation.start_time &&
+                     r.end_time === reservation.end_time;
+            });
+          }
+        }
+        
+        if (reservationsToDelete.length > 0) {
+          // Delete all individual reservations
+          await Promise.all(reservationsToDelete.map((gr: any) => deleteReservation(gr.id)));
+          toast.success(`${t('reservations.reservationDeleted')} (${reservationsToDelete.length} spaces)`);
+        } else {
+          // Fallback to single deletion
+          await deleteReservation(reservation.id);
+          toast.success(t('reservations.reservationDeleted'));
+        }
       } else {
         // Single reservation
         await deleteReservation(reservation.id);
@@ -423,34 +458,44 @@ const todayReservations = useMemo(() => {
     return res;
   });
 
-  // 4. Group by parent space_id + user + time
-  const grouped = new Map<string, any>();
+  // 4. Group by parent space_id + user + time, keeping all original reservations
+  const grouped = new Map<string, { reservation: any, originals: any[] }>();
 
-  remapped.forEach(r => {
-    const key = `${r.space_id}-${r.user_name}-${r.start_time}-${r.end_time}`;
-    if (!grouped.has(key)) grouped.set(key, r);
+  filtered.forEach(originalRes => {
+    const remappedRes = remapped.find(r => r.id === originalRes.id);
+    if (!remappedRes) return;
+
+    const key = `${remappedRes.space_id}-${remappedRes.user_name}-${remappedRes.start_time}-${remappedRes.end_time}`;
+    
+    if (!grouped.has(key)) {
+      grouped.set(key, { reservation: remappedRes, originals: [] });
+    }
+    
+    // Always add the original reservation to the list
+    grouped.get(key)!.originals.push(originalRes);
   });
 
-  // 5. Apply display information (group name)
-  const finalList = Array.from(grouped.values()).map(r => {
-    const space = spaces.find(s => s.id === r.space_id);
+  // 5. Apply display information (group name) and include all original reservations
+  const finalList = Array.from(grouped.values()).map(({ reservation, originals }) => {
+    const space = spaces.find(s => s.id === reservation.space_id);
 
     if (space?.type === "meeting_room") {
       const baseName = space.name.replace(/\s*\d+$/, "").trim();
 
       return {
-        ...r,
+        ...reservation,
         _isGroupReservation: true,
         _groupName: baseName,
         _groupSize: spaces.filter(s =>
           s.type === "meeting_room" &&
           s.name.replace(/\s*\d+$/, "").trim().toLowerCase() ===
           baseName.toLowerCase()
-        ).length
+        ).length,
+        _groupReservations: originals // Store all original reservations for deletion
       };
     }
 
-    return r;
+    return reservation;
   });
 
   return finalList;
