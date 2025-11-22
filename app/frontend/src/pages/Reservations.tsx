@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, ChevronRight, Edit, Trash2, Download, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
@@ -549,6 +549,262 @@ const todayReservations = useMemo(() => {
   const reservedLogicalSpaces = getReservedSpaceCount(spaces, reservations, selectedDate);
   const availableLogicalSpaces = getAvailableSpaceCount(spaces, reservations, selectedDate);
 
+  // Helper function to get all individual reservations for the selected day
+  const getAllDayReservations = () => {
+    const normalizeDate = (d: string) => d.split("T")[0];
+    return reservations.filter(r => {
+      const d = normalizeDate(r.date);
+      return d === selectedDate && r.status === "active";
+    });
+  };
+
+  // Export Day: Export all reservations for the selected day to CSV
+  const handleExportDay = () => {
+    if (!currentMap) {
+      toast.error('Please select a map first');
+      return;
+    }
+
+    const dayReservations = getAllDayReservations();
+    
+    if (dayReservations.length === 0) {
+      toast.error('No reservations to export for this day');
+      return;
+    }
+
+    // Get space names for better CSV readability
+    const reservationsWithSpaceNames = dayReservations.map(r => {
+      const space = spaces.find(s => s.id === r.space_id);
+      return {
+        space_id: r.space_id,
+        space_name: space?.name || 'Unknown',
+        space_type: space?.type || 'unknown',
+        user_id: r.user_id,
+        user_name: r.user_name || '',
+        date: r.date.split('T')[0],
+        start_time: r.start_time || '',
+        end_time: r.end_time || '',
+        notes: r.notes || ''
+      };
+    });
+
+    // Create CSV content
+    const headers = ['Space ID', 'Space Name', 'Space Type', 'User ID', 'User Name', 'Date', 'Start Time', 'End Time', 'Notes'];
+    const csvRows = [
+      headers.join(','),
+      ...reservationsWithSpaceNames.map(r => [
+        r.space_id,
+        `"${r.space_name.replace(/"/g, '""')}"`,
+        r.space_type,
+        r.user_id,
+        `"${r.user_name.replace(/"/g, '""')}"`,
+        r.date,
+        r.start_time,
+        r.end_time,
+        `"${r.notes.replace(/"/g, '""')}"`
+      ].join(','))
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const dataBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reservations_${currentMap.name.replace(/\s+/g, '_')}_${selectedDate}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${dayReservations.length} reservation(s) for ${selectedDate}`);
+  };
+
+  // Import Day: Import reservations from a CSV or JSON file
+  const handleImportDay = () => {
+    if (!currentMap) {
+      toast.error('Please select a map first');
+      return;
+    }
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        let reservationsToImport: any[] = [];
+
+        // Check if it's CSV or JSON
+        if (file.name.endsWith('.csv')) {
+          // Parse CSV
+          const lines = text.split('\n').filter(line => line.trim());
+          if (lines.length < 2) {
+            toast.error('CSV file must have at least a header row and one data row');
+            return;
+          }
+
+          const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+          const spaceIdIndex = headers.findIndex(h => h.toLowerCase() === 'space id');
+          const userIdIndex = headers.findIndex(h => h.toLowerCase() === 'user id');
+          const userNameIndex = headers.findIndex(h => h.toLowerCase() === 'user name');
+          const dateIndex = headers.findIndex(h => h.toLowerCase() === 'date');
+          const startTimeIndex = headers.findIndex(h => h.toLowerCase() === 'start time');
+          const endTimeIndex = headers.findIndex(h => h.toLowerCase() === 'end time');
+          const notesIndex = headers.findIndex(h => h.toLowerCase() === 'notes');
+
+          if (spaceIdIndex === -1 || userIdIndex === -1 || dateIndex === -1) {
+            toast.error('CSV file must have columns: Space ID, User ID, Date');
+            return;
+          }
+
+          // Parse CSV rows
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+            if (values.length < headers.length) continue;
+
+            reservationsToImport.push({
+              space_id: values[spaceIdIndex],
+              user_id: values[userIdIndex],
+              user_name: values[userNameIndex] || values[userIdIndex],
+              date: values[dateIndex] || selectedDate,
+              start_time: values[startTimeIndex] || '',
+              end_time: values[endTimeIndex] || '',
+              notes: values[notesIndex] || ''
+            });
+          }
+        } else {
+          // Parse JSON
+          const importData = JSON.parse(text);
+          
+          // Support both old format (with reservations array) and new format (direct array)
+          if (Array.isArray(importData)) {
+            reservationsToImport = importData;
+          } else if (importData.reservations && Array.isArray(importData.reservations)) {
+            reservationsToImport = importData.reservations;
+          } else {
+            toast.error('Invalid file format. Expected a JSON file with a reservations array.');
+            return;
+          }
+        }
+
+        if (reservationsToImport.length === 0) {
+          toast.error('No reservations found in the file');
+          return;
+        }
+
+        // Confirm before importing
+        const confirmed = window.confirm(
+          `This will create ${reservationsToImport.length} reservation(s) for ${selectedDate}. Continue?`
+        );
+
+        if (!confirmed) return;
+
+        setLoading(true);
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Import each reservation
+        for (const reservation of reservationsToImport) {
+          try {
+            // Use the date from reservation or fallback to selected date
+            const reservationDate = reservation.date || selectedDate;
+            
+            await createReservation({
+              space_id: reservation.space_id,
+              user_id: reservation.user_id,
+              user_name: reservation.user_name || reservation.user_id,
+              date: reservationDate,
+              start_time: reservation.start_time || '09:00',
+              end_time: reservation.end_time || '10:00',
+              notes: reservation.notes || '',
+              status: 'active'
+            });
+            successCount++;
+          } catch (error: any) {
+            console.error('Error importing reservation:', error);
+            errorCount++;
+          }
+        }
+
+        // Refresh reservations
+        await fetchReservations();
+        if (currentMap) {
+          await fetchMap(currentMap.id);
+        }
+
+        if (errorCount > 0) {
+          toast.error(`Imported ${successCount} reservation(s), ${errorCount} failed`);
+        } else {
+          toast.success(`Successfully imported ${successCount} reservation(s)`);
+        }
+      } catch (error) {
+        console.error('Error parsing import file:', error);
+        toast.error('Failed to parse import file. Please check the file format.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    input.click();
+  };
+
+  // Clear Day: Delete all reservations for the selected day
+  const handleClearDay = async () => {
+    if (!currentMap) {
+      toast.error('Please select a map first');
+      return;
+    }
+
+    const dayReservations = getAllDayReservations();
+    
+    if (dayReservations.length === 0) {
+      toast.error('No reservations to clear for this day');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete all ${dayReservations.length} reservation(s) for ${selectedDate}? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Delete all individual reservations for the day
+      for (const reservation of dayReservations) {
+        try {
+          await deleteReservation(reservation.id);
+          successCount++;
+        } catch (error: any) {
+          console.error('Error deleting reservation:', error);
+          errorCount++;
+        }
+      }
+
+      // Refresh reservations
+      await fetchReservations();
+      if (currentMap) {
+        await fetchMap(currentMap.id);
+      }
+
+      if (errorCount > 0) {
+        toast.error(`Deleted ${successCount} reservation(s), ${errorCount} failed`);
+      } else {
+        toast.success(`Successfully deleted ${successCount} reservation(s)`);
+      }
+    } catch (error) {
+      console.error('Error clearing day:', error);
+      toast.error('Failed to clear reservations for this day');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -558,79 +814,112 @@ const todayReservations = useMemo(() => {
       </div>
 
       {/* Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Map
-          </label>
-          <select
-            value={currentMap?.id || ''}
-            onChange={(e) => handleMapChange(e.target.value)}
-            className="input"
+      <div className="space-y-4">
+        {/* Day Actions: Export, Import, Clear - Above dropdowns */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleExportDay}
+            disabled={loading || !currentMap}
+            className="btn btn-secondary flex items-center space-x-2"
+            title="Export all reservations for the selected day to CSV"
           >
-            <option value="">Choose a map...</option>
-            {maps.map(map => (
-              <option key={map.id} value={map.id}>
-                {map.name}
-              </option>
-            ))}
-          </select>
+            <Download className="h-4 w-4" />
+            <span>Export Day</span>
+          </button>
+          <button
+            onClick={handleImportDay}
+            disabled={loading || !currentMap}
+            className="btn btn-secondary flex items-center space-x-2"
+            title="Import reservations from a CSV or JSON file"
+          >
+            <Upload className="h-4 w-4" />
+            <span>Import Day</span>
+          </button>
+          <button
+            onClick={handleClearDay}
+            disabled={loading || !currentMap}
+            className="btn btn-danger flex items-center space-x-2"
+            title="Delete all reservations for the selected day"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Clear Day</span>
+          </button>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Date
-          </label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            min={format(new Date(), 'yyyy-MM-dd')}
-            max={format(addDays(new Date(), 7), 'yyyy-MM-dd')}
-            className="input"
-          />
-        </div>
-
-        <div className="flex items-end">
-          <div className="flex flex-col space-y-2">
-            {/* Date Navigation Controls */}
-            <div className="flex items-center space-x-2 mb-2">
-              <button 
-                onClick={handlePreviousDay}
-                className="btn btn-secondary p-2"
-                title="Previous day"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button 
-                onClick={handleToday}
-                className="btn btn-secondary px-3 py-2 text-sm font-medium min-w-[140px]"
-                title="Go to today"
-              >
-                {formatSelectedDate()}
-              </button>
-              <button 
-                onClick={handleNextDay}
-                className="btn btn-secondary p-2"
-                title="Next day"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-            
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="btn btn-secondary flex items-center space-x-2"
-              title={t('reservations.refreshData')}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Select Map
+            </label>
+            <select
+              value={currentMap?.id || ''}
+              onChange={(e) => handleMapChange(e.target.value)}
+              className="input"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>{t('reservations.refresh')}</span>
-            </button>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              <p><strong>{reservedLogicalSpaces}</strong> {t('reservations.reservationsFor')}</p>
-              <p><strong>{totalLogicalSpaces}</strong> {t('reservations.totalSpaces')}</p>
-              <p><strong>{availableLogicalSpaces}</strong> {t('reservations.availableSpaces')}</p>
+              <option value="">Choose a map...</option>
+              {maps.map(map => (
+                <option key={map.id} value={map.id}>
+                  {map.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Select Date
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              min={format(new Date(), 'yyyy-MM-dd')}
+              max={format(addDays(new Date(), 7), 'yyyy-MM-dd')}
+              className="input"
+            />
+          </div>
+
+          <div className="flex items-end">
+            <div className="flex flex-col space-y-2 w-full">
+              {/* Date Navigation Controls */}
+              <div className="flex items-center space-x-2 mb-2">
+                <button 
+                  onClick={handlePreviousDay}
+                  className="btn btn-secondary p-2"
+                  title="Previous day"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={handleToday}
+                  className="btn btn-secondary px-3 py-2 text-sm font-medium min-w-[140px]"
+                  title="Go to today"
+                >
+                  {formatSelectedDate()}
+                </button>
+                <button 
+                  onClick={handleNextDay}
+                  className="btn btn-secondary p-2"
+                  title="Next day"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="btn btn-secondary flex items-center justify-center space-x-2"
+                title={t('reservations.refreshData')}
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>{t('reservations.refresh')}</span>
+              </button>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                <p><strong>{reservedLogicalSpaces}</strong> {t('reservations.reservationsFor')}</p>
+                <p><strong>{totalLogicalSpaces}</strong> {t('reservations.totalSpaces')}</p>
+                <p><strong>{availableLogicalSpaces}</strong> {t('reservations.availableSpaces')}</p>
+              </div>
             </div>
           </div>
         </div>

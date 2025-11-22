@@ -55,4 +55,9 @@ export interface Reservation {
   created_at: string;
   updated_at: string;
   space?: Space;
+  // Frontend-only properties for grouping meeting room reservations
+  _isGroupReservation?: boolean;
+  _groupReservations?: Reservation[];
+  _groupName?: string;
+  _groupSize?: number;
 }
