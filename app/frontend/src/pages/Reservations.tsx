@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, ChevronRight, Edit, Trash2, Download, Upload } from 'lucide-react';
+import { Calendar, MapPin, X, Info, Clock, User, ChevronLeft, ChevronRight, Edit, Trash2, Download, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
@@ -29,7 +29,6 @@ const Reservations: React.FC = () => {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [showSpaceInfo, setShowSpaceInfo] = useState(false);
   const [selectedSpaceInfo, setSelectedSpaceInfo] = useState<{space: Space | null, reservations: any[]}>({space: null, reservations: []});
   const [showEditModal, setShowEditModal] = useState(false);
@@ -50,21 +49,6 @@ const Reservations: React.FC = () => {
       setCurrentMap(selectedMap);
       // Refresh reservations when changing maps
       fetchReservations();
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([
-        fetchReservations(),
-        // Also refresh the current map to get updated spaces
-        currentMap ? fetchMap(currentMap.id) : Promise.resolve()
-      ]);
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setRefreshing(false);
     }
   };
 
@@ -997,49 +981,64 @@ const todayReservations = useMemo(() => {
       </div>
 
       {/* Controls */}
-      <div className="space-y-4">
-        {/* Day Actions: Export, Import, Clear - Above dropdowns */}
-        <div className="flex items-center space-x-2">
+      <div className="space-y-6">
+        {/* Action Buttons Row with Statistics */}
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleExportDay}
             disabled={loading || !currentMap}
-            className="btn btn-secondary flex items-center space-x-2"
-            title="Export all reservations for the selected day to CSV"
+            className="btn btn-secondary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t('reservations.exportAllReservations')}
           >
             <Download className="h-4 w-4" />
-            <span>Export Day</span>
+            <span>{t('reservations.exportDay')}</span>
           </button>
           <button
             onClick={handleImportDay}
             disabled={loading || !currentMap}
-            className="btn btn-secondary flex items-center space-x-2"
-            title="Import reservations from a CSV or JSON file"
+            className="btn btn-secondary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t('reservations.importReservations')}
           >
             <Upload className="h-4 w-4" />
-            <span>Import Day</span>
+            <span>{t('reservations.importDay')}</span>
           </button>
           <button
             onClick={handleClearDay}
             disabled={loading || !currentMap}
-            className="btn btn-danger flex items-center space-x-2"
-            title="Delete all reservations for the selected day"
+            className="btn btn-danger flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t('reservations.clearAllReservations')}
           >
             <Trash2 className="h-4 w-4" />
-            <span>Clear Day</span>
+            <span>{t('reservations.clearDay')}</span>
           </button>
+          
+          {/* Statistics - Same row as buttons */}
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 space-y-1 ml-auto">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              <strong className="text-gray-900 dark:text-gray-100">{reservedLogicalSpaces}</strong> {t('reservations.reservationsFor')}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              <strong className="text-gray-900 dark:text-gray-100">{totalLogicalSpaces}</strong> {t('reservations.totalSpaces')}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              <strong className="text-gray-900 dark:text-gray-100">{availableLogicalSpaces}</strong> {t('reservations.availableSpaces')}
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Controls Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Map Selector */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select Map
+              {t('reservations.selectMap')}
             </label>
             <select
               value={currentMap?.id || ''}
               onChange={(e) => handleMapChange(e.target.value)}
-              className="input"
+              className="input w-full"
             >
-              <option value="">Choose a map...</option>
+              <option value="">{t('reservations.chooseMap')}</option>
               {maps.map(map => (
                 <option key={map.id} value={map.id}>
                   {map.name}
@@ -1048,9 +1047,10 @@ const todayReservations = useMemo(() => {
             </select>
           </div>
 
+          {/* Date Selector */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select Date
+              {t('reservations.selectDate')}
             </label>
             <input
               type="date"
@@ -1058,51 +1058,37 @@ const todayReservations = useMemo(() => {
               onChange={(e) => setSelectedDate(e.target.value)}
               min={format(new Date(), 'yyyy-MM-dd')}
               max={format(addDays(new Date(), 7), 'yyyy-MM-dd')}
-              className="input"
+              className="input w-full"
             />
           </div>
 
-          <div className="flex items-end">
-            <div className="flex flex-col space-y-2 w-full">
-              {/* Date Navigation Controls */}
-              <div className="flex items-center space-x-2 mb-2">
-                <button 
-                  onClick={handlePreviousDay}
-                  className="btn btn-secondary p-2"
-                  title="Previous day"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button 
-                  onClick={handleToday}
-                  className="btn btn-secondary px-3 py-2 text-sm font-medium min-w-[140px]"
-                  title="Go to today"
-                >
-                  {formatSelectedDate()}
-                </button>
-                <button 
-                  onClick={handleNextDay}
-                  className="btn btn-secondary p-2"
-                  title="Next day"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-              
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="btn btn-secondary flex items-center justify-center space-x-2"
-                title={t('reservations.refreshData')}
+          {/* Date Navigation */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {t('reservations.navigateDate')}
+            </label>
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={handlePreviousDay}
+                className="btn btn-secondary p-2 flex-shrink-0"
+                title={t('reservations.previousDay')}
               >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>{t('reservations.refresh')}</span>
+                <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                <p><strong>{reservedLogicalSpaces}</strong> {t('reservations.reservationsFor')}</p>
-                <p><strong>{totalLogicalSpaces}</strong> {t('reservations.totalSpaces')}</p>
-                <p><strong>{availableLogicalSpaces}</strong> {t('reservations.availableSpaces')}</p>
-              </div>
+              <button 
+                onClick={handleToday}
+                className="btn btn-secondary px-3 py-2 text-sm font-medium flex-1 text-center"
+                title={t('reservations.goToToday')}
+              >
+                {formatSelectedDate()}
+              </button>
+              <button 
+                onClick={handleNextDay}
+                className="btn btn-secondary p-2 flex-shrink-0"
+                title={t('reservations.nextDay')}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>

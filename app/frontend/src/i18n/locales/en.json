@@ -43,6 +43,11 @@
     "selectMap": "Select Map",
     "selectDate": "Select Date",
     "chooseMap": "Choose a map...",
+    "navigateDate": "Navigate Date",
+    "previousDay": "Previous day",
+    "nextDay": "Next day",
+    "goToToday": "Go to today",
+    "statistics": "Statistics",
     "reservationsFor": "reservations for selected date",
     "totalSpaces": "total spaces available",
     "availableSpaces": "spaces available",
@@ -100,7 +105,13 @@
     "reservations": "reservations",
     "total": "total",
     "clickToViewAll": "Click to view all",
-    "users": "users"
+    "users": "users",
+    "exportDay": "Export Day",
+    "importDay": "Import Day",
+    "clearDay": "Clear Day",
+    "exportAllReservations": "Export all reservations for the selected day",
+    "importReservations": "Import reservations from a CSV or JSON file",
+    "clearAllReservations": "Clear all reservations for the selected day"
   },
   "mapBuilder": {
     "title": "Map Builder",

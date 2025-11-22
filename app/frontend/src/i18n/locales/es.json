@@ -43,6 +43,11 @@
     "selectMap": "Seleccionar Mapa",
     "selectDate": "Seleccionar Fecha",
     "chooseMap": "Elige un mapa...",
+    "navigateDate": "Navegar Fecha",
+    "previousDay": "Día anterior",
+    "nextDay": "Día siguiente",
+    "goToToday": "Ir a hoy",
+    "statistics": "Estadísticas",
     "reservationsFor": "reservaciones para la fecha seleccionada",
     "totalSpaces": "espacios totales disponibles",
     "availableSpaces": "espacios disponibles",
@@ -94,7 +99,13 @@
     "enterUserName": "Ingresa el nombre de usuario",
     "spaceName": "Nombre del Espacio",
     "startTime": "Hora de Inicio",
-    "endTime": "Hora de Fin"
+    "endTime": "Hora de Fin",
+    "exportDay": "Exportar Día",
+    "importDay": "Importar Día",
+    "clearDay": "Limpiar Día",
+    "exportAllReservations": "Exportar todas las reservaciones del día seleccionado",
+    "importReservations": "Importar reservaciones desde un archivo CSV o JSON",
+    "clearAllReservations": "Eliminar todas las reservaciones del día seleccionado"
   },
   "mapBuilder": {
     "title": "Constructor de Mapas",
