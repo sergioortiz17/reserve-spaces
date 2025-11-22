@@ -83,4 +83,9 @@ export const deleteReservation = async (id: string): Promise<void> => {
   await api.delete(`/reservations/${id}`);
 };
 
+export const cleanupMeetingRoomReservations = async (spaceId: string): Promise<any> => {
+  const response = await api.post(`/reservations/cleanup/meeting-room/${spaceId}`);
+  return response.data;
+};
+
 export default api;

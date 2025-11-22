@@ -3,7 +3,7 @@ import { Calendar, MapPin, X, RefreshCw, Info, Clock, User, ChevronLeft, Chevron
 import { useTranslation } from 'react-i18next';
 import { useOfficeMap } from '../hooks/useOfficeMap';
 import { useReservations } from '../hooks/useReservations';
-import { createReservation, updateReservation, deleteReservation } from '../utils/api';
+import { createReservation, updateReservation, deleteReservation, cleanupMeetingRoomReservations } from '../utils/api';
 import toast from 'react-hot-toast';
 import { format, addDays } from 'date-fns';
 import type { Space } from '../types';
@@ -173,13 +173,39 @@ const Reservations: React.FC = () => {
 
     setLoading(true);
     try {
-      await updateReservation(editingReservation.id, {
-        user_name: editUserName.trim(),
-        start_time: editStartTime,
-        end_time: editEndTime,
-      });
+      if (editingReservation._isGroupReservation && editingReservation._groupReservations) {
+        // For group reservations, cancel all existing and create a new one
+        // First, cancel all existing reservations
+        await Promise.all(editingReservation._groupReservations.map((gr: any) => 
+          deleteReservation(gr.id)
+        ));
+        
+        // Then create a new reservation with updated data
+        const space = spaces.find(s => s.id === editingReservation.space_id);
+        if (space) {
+          await createReservation({
+            space_id: editingReservation.space_id,
+            user_id: editUserName.trim(),
+            user_name: editUserName.trim(),
+            date: editingReservation.date.split('T')[0],
+            start_time: editStartTime,
+            end_time: editEndTime,
+            status: 'active'
+          });
+        }
+        
+        toast.success(t('reservations.reservationUpdated'));
+      } else {
+        // Single reservation update
+        await updateReservation(editingReservation.id, {
+          user_name: editUserName.trim(),
+          start_time: editStartTime,
+          end_time: editEndTime,
+        });
+        
+        toast.success(t('reservations.reservationUpdated'));
+      }
       
-      toast.success(t('reservations.reservationUpdated'));
       setShowEditModal(false);
       setEditingReservation(null);
       
@@ -251,6 +277,23 @@ const Reservations: React.FC = () => {
       await fetchReservations();
     } catch (error) {
       toast.error(t('reservations.failedToDelete'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCleanupMeetingRoom = async (spaceId: string) => {
+    if (!confirm('Are you sure you want to clean up all reservations for this meeting room group? This will cancel ALL reservations (active and cancelled) for the entire group.')) return;
+
+    setLoading(true);
+    try {
+      const result = await cleanupMeetingRoomReservations(spaceId);
+      toast.success(`Cleaned up ${result.cancelled || 0} reservations for ${result.spaces || 0} spaces`);
+      
+      // Refresh reservations
+      await fetchReservations();
+    } catch (error) {
+      toast.error('Failed to cleanup meeting room reservations');
     } finally {
       setLoading(false);
     }
@@ -746,16 +789,20 @@ const todayReservations = useMemo(() => {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => handleEditReservation(reservation)}
-                      disabled={reservation._isGroupReservation}
-                      className={`p-2 rounded-lg transition-colors ${
-                        reservation._isGroupReservation
-                          ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                          : 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                      }`}
-                      title={reservation._isGroupReservation ? 'Group reservations cannot be edited individually' : t('reservations.editReservation')}
+                      className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title={t('reservations.editReservation')}
                     >
                       <Edit className="h-4 w-4" />
                     </button>
+                    {reservation._isGroupReservation && (
+                      <button
+                        onClick={() => handleCleanupMeetingRoom(reservation.space_id)}
+                        className="p-2 text-orange-600 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-200 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                        title="Cleanup all reservations for this meeting room group"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteReservation(reservation)}
                       className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"

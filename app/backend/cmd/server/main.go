@@ -75,6 +75,7 @@ func main() {
 			reservations.POST("", h.CreateReservation)
 			reservations.PUT("/:id", h.UpdateReservation)
 			reservations.DELETE("/:id", h.DeleteReservation)
+			reservations.POST("/cleanup/meeting-room/:space_id", h.CleanupMeetingRoomReservations)
 		}
 	}
 
