@@ -1094,108 +1094,110 @@ const todayReservations = useMemo(() => {
         </div>
       </div>
 
-      {/* Office Map */}
-      {currentMap && (
-        <div className="card p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              {currentMap.name} - {format(new Date(selectedDate), 'MMMM d, yyyy')}
-            </h3>
-            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-1">
-              <p>{t('reservations.clickToReserve')}</p>
-              <p className="text-xs">💡 {t('reservations.clickForDetails')} (doble click o click derecho)</p>
+      {/* Office Map and Reservations Side by Side */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Office Map - Left Side */}
+        {currentMap ? (
+          <div className="card p-6 flex-shrink-0" style={{ width: 'fit-content', maxWidth: '100%' }}>
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                {currentMap.name} - {format(new Date(selectedDate), 'MMMM d, yyyy')}
+              </h3>
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-1">
+                <p>{t('reservations.clickToReserve')}</p>
+                <p className="text-xs">💡 {t('reservations.clickForDetails')} (doble click o click derecho)</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-start">
+              {renderOfficeMap()}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 flex flex-wrap gap-6">
+              <div className="flex items-center">
+                <svg width="16" height="14" className="mr-2">
+                  <polygon 
+                    points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                    fill="#3b82f6" 
+                    stroke="#d1d5db" 
+                    strokeWidth="0.5"
+                  />
+                </svg>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.workstation')}</span>
+              </div>
+              <div className="flex items-center">
+                <svg width="16" height="14" className="mr-2">
+                  <polygon 
+                    points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                    fill="#10b981" 
+                    stroke="#d1d5db" 
+                    strokeWidth="0.5"
+                  />
+                </svg>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.meetingRoom')}</span>
+              </div>
+              <div className="flex items-center">
+                <svg width="16" height="14" className="mr-2">
+                  <polygon 
+                    points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                    fill="#8b5cf6" 
+                    stroke="#d1d5db" 
+                    strokeWidth="0.5"
+                  />
+                </svg>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.cubicle')}</span>
+              </div>
+              <div className="flex items-center">
+                <svg width="16" height="14" className="mr-2">
+                  <polygon 
+                    points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                    fill="#374151" 
+                    stroke="#d1d5db" 
+                    strokeWidth="0.5"
+                  />
+                </svg>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.invalidSpace')}</span>
+              </div>
+              <div className="flex items-center">
+                <svg width="16" height="14" className="mr-2">
+                  <polygon 
+                    points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                    fill="#ef4444" 
+                    stroke="#d1d5db" 
+                    strokeWidth="0.5"
+                    opacity="0.75"
+                  />
+                </svg>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.reserved')}</span>
+              </div>
+              <div className="flex items-center">
+                <svg width="16" height="14" className="mr-2">
+                  <polygon 
+                    points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
+                    fill="#f9fafb" 
+                    stroke="#d1d5db" 
+                    strokeWidth="0.5"
+                  />
+                </svg>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.emptySpace')}</span>
+              </div>
             </div>
           </div>
-          
-          {renderOfficeMap()}
-
-          {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-6">
-            <div className="flex items-center">
-              <svg width="16" height="14" className="mr-2">
-                <polygon 
-                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
-                  fill="#3b82f6" 
-                  stroke="#d1d5db" 
-                  strokeWidth="0.5"
-                />
-              </svg>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.workstation')}</span>
-            </div>
-            <div className="flex items-center">
-              <svg width="16" height="14" className="mr-2">
-                <polygon 
-                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
-                  fill="#10b981" 
-                  stroke="#d1d5db" 
-                  strokeWidth="0.5"
-                />
-              </svg>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.meetingRoom')}</span>
-            </div>
-            <div className="flex items-center">
-              <svg width="16" height="14" className="mr-2">
-                <polygon 
-                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
-                  fill="#8b5cf6" 
-                  stroke="#d1d5db" 
-                  strokeWidth="0.5"
-                />
-              </svg>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.cubicle')}</span>
-            </div>
-            <div className="flex items-center">
-              <svg width="16" height="14" className="mr-2">
-                <polygon 
-                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
-                  fill="#374151" 
-                  stroke="#d1d5db" 
-                  strokeWidth="0.5"
-                />
-              </svg>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.invalidSpace')}</span>
-            </div>
-            <div className="flex items-center">
-              <svg width="16" height="14" className="mr-2">
-                <polygon 
-                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
-                  fill="#ef4444" 
-                  stroke="#d1d5db" 
-                  strokeWidth="0.5"
-                  opacity="0.75"
-                />
-              </svg>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.reserved')}</span>
-            </div>
-            <div className="flex items-center">
-              <svg width="16" height="14" className="mr-2">
-                <polygon 
-                  points="2,0 6,0 8,3.5 6,7 2,7 0,3.5" 
-                  fill="#f9fafb" 
-                  stroke="#d1d5db" 
-                  strokeWidth="0.5"
-                />
-              </svg>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.emptySpace')}</span>
+        ) : (
+          <div className="card flex-shrink-0" style={{ width: 'fit-content' }}>
+            <div className="text-center py-12 px-6">
+              <MapPin className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No map selected</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Please select a map to view and reserve spaces.
+              </p>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {!currentMap && (
-        <div className="card">
-          <div className="text-center py-12">
-            <MapPin className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No map selected</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Please select a map to view and reserve spaces.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Current Reservations */}
-      <div className="card p-6">
+        {/* Current Reservations - Right Side */}
+        <div className="card p-6 flex-1 min-w-0">
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
           Reservations for {format(new Date(selectedDate), 'MMMM d, yyyy')}
         </h3>
@@ -1483,6 +1485,7 @@ const todayReservations = useMemo(() => {
             </p>
           </div>
         )}
+        </div>
       </div>
 
       {/* Reservations Panel - Right Side */}

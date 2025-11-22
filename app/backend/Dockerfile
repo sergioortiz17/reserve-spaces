@@ -22,9 +22,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
 FROM alpine:3.20
 
 # Update package index and install dependencies
-# Use a more recent Alpine version for better stability
-RUN apk update --no-cache && \
-    apk --no-cache add ca-certificates tzdata
+    # Update package index and install dependencies
+    # Retry logic for network issues with Alpine repositories
+    RUN apk update --no-cache || \
+        (sleep 3 && apk update --no-cache) || \
+        (sleep 5 && apk update --no-cache) && \
+        apk --no-cache add ca-certificates tzdata
 
 WORKDIR /root/
 
