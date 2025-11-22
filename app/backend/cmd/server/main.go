@@ -4,6 +4,7 @@ import (
 	"log"
 	"office-reservations/internal/database"
 	"office-reservations/internal/handlers"
+	"office-reservations/internal/infrastructure/di"
 	"office-reservations/internal/middleware"
 	"os"
 
@@ -23,8 +24,11 @@ func main() {
 		log.Fatal("Failed to run migrations:", err)
 	}
 
-	// Initialize handlers
-	h := handlers.New(db)
+	// Initialize dependency injection container (Clean Architecture)
+	container := di.NewContainer(db)
+
+	// Initialize legacy handlers (for Maps and Spaces - to be refactored later)
+	legacyHandlers := handlers.New(db)
 
 	// Setup Gin router
 	r := gin.Default()
@@ -44,38 +48,39 @@ func main() {
 	api := r.Group("/api")
 	{
 		// Health check
-		api.GET("/health", h.HealthCheck)
+		api.GET("/health", legacyHandlers.HealthCheck)
 
-		// Maps
+		// Maps (using legacy handlers - to be refactored)
 		maps := api.Group("/maps")
 		{
-			maps.GET("", h.GetMaps)
-			maps.GET("/:id", h.GetMap)
-			maps.POST("", h.CreateMap)
-			maps.PUT("/:id", h.UpdateMap)
-			maps.DELETE("/:id", h.DeleteMap)
+			maps.GET("", legacyHandlers.GetMaps)
+			maps.GET("/:id", legacyHandlers.GetMap)
+			maps.POST("", legacyHandlers.CreateMap)
+			maps.PUT("/:id", legacyHandlers.UpdateMap)
+			maps.DELETE("/:id", legacyHandlers.DeleteMap)
 		}
 
-		// Spaces
+		// Spaces (using legacy handlers - to be refactored)
 		spaces := api.Group("/spaces")
 		{
-			spaces.GET("", h.GetSpaces)
-			spaces.GET("/:id", h.GetSpace)
-			spaces.POST("", h.CreateSpace)
-			spaces.PUT("/:id", h.UpdateSpace)
-			spaces.DELETE("/:id", h.DeleteSpace)
-			spaces.GET("/:id/availability", h.GetSpaceAvailability)
+			spaces.GET("", legacyHandlers.GetSpaces)
+			spaces.GET("/:id", legacyHandlers.GetSpace)
+			spaces.POST("", legacyHandlers.CreateSpace)
+			spaces.PUT("/:id", legacyHandlers.UpdateSpace)
+			spaces.DELETE("/:id", legacyHandlers.DeleteSpace)
+			spaces.GET("/:id/availability", legacyHandlers.GetSpaceAvailability)
 		}
 
-		// Reservations
+		// Reservations (using new Clean Architecture handlers)
 		reservations := api.Group("/reservations")
 		{
-			reservations.GET("", h.GetReservations)
-			reservations.GET("/:id", h.GetReservation)
-			reservations.POST("", h.CreateReservation)
-			reservations.PUT("/:id", h.UpdateReservation)
-			reservations.DELETE("/:id", h.DeleteReservation)
-			reservations.POST("/cleanup/meeting-room/:space_id", h.CleanupMeetingRoomReservations)
+			reservations.GET("", container.ReservationHandler.GetReservations)
+			reservations.GET("/:id", container.ReservationHandler.GetReservation)
+			reservations.POST("", container.ReservationHandler.CreateReservation)
+			reservations.PUT("/:id", container.ReservationHandler.UpdateReservation)
+			reservations.DELETE("/:id", container.ReservationHandler.DeleteReservation)
+			// Legacy endpoint - keeping for backward compatibility
+			reservations.POST("/cleanup/meeting-room/:space_id", legacyHandlers.CleanupMeetingRoomReservations)
 		}
 	}
 

@@ -1,5 +1,10 @@
+/**
+ * Legacy API utilities - maintained for backward compatibility
+ * New code should use services from application/services instead
+ */
 import axios from 'axios';
 import type { OfficeMap, Space, Reservation } from '../types';
+import { services } from '../infrastructure/di/container';
 
 const API_BASE_URL = '/api';
 
@@ -62,25 +67,22 @@ export const deleteSpace = async (id: string): Promise<void> => {
   await api.delete(`/spaces/${id}`);
 };
 
-// Reservations API
+// Reservations API - Now using Clean Architecture services internally
 export const getReservations = async (filters?: any): Promise<Reservation[]> => {
-  const response = await api.get('/reservations', { params: filters });
-  return response.data;
+  return services.reservation.getReservations(filters);
 };
 
 export const createReservation = async (data: any): Promise<Reservation> => {
-  const response = await api.post('/reservations', data);
-  return response.data;
+  return services.reservation.createReservation(data);
 };
 
 export const updateReservation = async (id: string, data: any): Promise<Reservation> => {
   console.log('Updating reservation:', id, 'with data:', data);
-  const response = await api.put(`/reservations/${id}`, data);
-  return response.data;
+  return services.reservation.updateReservation(id, data);
 };
 
 export const deleteReservation = async (id: string): Promise<void> => {
-  await api.delete(`/reservations/${id}`);
+  await services.reservation.deleteReservation(id);
 };
 
 export const cleanupMeetingRoomReservations = async (spaceId: string): Promise<any> => {
