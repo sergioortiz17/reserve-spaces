@@ -49,17 +49,35 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsPinned(!isPinned);
   };
 
+  // Get page title based on current route
+  const getPageTitle = () => {
+    if (location.pathname === '/dashboard') {
+      return t('nav.dashboard');
+    } else if (location.pathname === '/reservations') {
+      return t('nav.reservations');
+    } else if (location.pathname === '/map-builder') {
+      return t('nav.mapBuilder');
+    }
+    return t('nav.dashboard');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Building2 className="h-8 w-8 text-primary-600" />
-              <h1 className="ml-3 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Office Reservations
-              </h1>
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center">
+                <Building2 className="h-8 w-8 text-primary-600" />
+                <h1 className="ml-3 text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  Space Reserved
+                </h1>
+              </div>
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+              <h2 className="text-lg font-medium text-gray-700 dark:text-gray-300">
+                {getPageTitle()}
+              </h2>
             </div>
             <div className="flex items-center space-x-4">
               <LanguageToggle />

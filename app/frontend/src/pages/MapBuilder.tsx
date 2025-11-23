@@ -449,8 +449,6 @@ const MapBuilder: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Map Builder</h1>
-            <p className="text-gray-600">Design and manage your office layout</p>
           </div>
         </div>
 
@@ -496,8 +494,7 @@ const MapBuilder: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Map Builder</h1>
-          <p className="text-gray-600">Editing: {currentMap.name}</p>
+          <p className="text-gray-600 dark:text-gray-400">Editing: {currentMap.name}</p>
         </div>
         <div className="flex space-x-3">
           <button 
