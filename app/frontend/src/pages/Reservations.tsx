@@ -21,7 +21,6 @@ const Reservations: React.FC = () => {
   const { maps, currentMap, setCurrentMap, fetchMap } = useOfficeMap();
   const { reservations, fetchReservations, loading: reservationsLoading } = useReservations();
   
-  console.log('Reservations - maps count:', maps.length, 'currentMap:', currentMap?.name);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
   const [showReservationModal, setShowReservationModal] = useState(false);
@@ -1097,9 +1096,8 @@ const todayReservations = useMemo(() => {
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                 {currentMap.name} - {format(new Date(selectedDate), 'MMMM d, yyyy')}
               </h3>
-              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-1">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 <p>{t('reservations.clickToReserve')}</p>
-                <p className="text-xs">💡 {t('reservations.clickForDetails')} (doble click o click derecho)</p>
               </div>
             </div>
             
@@ -1151,7 +1149,7 @@ const todayReservations = useMemo(() => {
                     strokeWidth="0.5"
                   />
                 </svg>
-                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.invalidSpace')}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.invalidSpace').replace(/ Space|Espacio /gi, '')}</span>
               </div>
               <div className="flex items-center">
                 <svg width="16" height="14" className="mr-2">
@@ -1174,7 +1172,7 @@ const todayReservations = useMemo(() => {
                     strokeWidth="0.5"
                   />
                 </svg>
-                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.emptySpace')}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('reservations.emptySpace').replace(/ Space|Espacio /gi, '')}</span>
               </div>
             </div>
           </div>
@@ -1492,8 +1490,8 @@ const todayReservations = useMemo(() => {
           />
           
           {/* Panel - Glass effect */}
-          <div className="w-full max-w-md bg-gray-900/80 dark:bg-gray-900/90 backdrop-blur-md shadow-2xl overflow-y-auto border-l border-gray-700/50">
-            <div className="sticky top-0 bg-gray-900/90 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-700/50 p-4 flex items-center justify-between">
+          <div className="w-full max-w-md bg-gray-900/60 dark:bg-gray-900/70 backdrop-blur-md shadow-2xl overflow-y-auto border-l border-gray-700/50">
+            <div className="sticky top-0 bg-gray-900/70 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-700/50 p-4 flex items-center justify-between">
               <h3 className="text-lg font-medium text-white flex items-center">
                 <MapPin className="h-5 w-5 mr-2" />
                 {selectedSpaceReservations.space.name}

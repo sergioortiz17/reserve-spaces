@@ -10,13 +10,6 @@ import { useTranslation } from 'react-i18next';
 const MapBuilder: React.FC = () => {
   const { t } = useTranslation();
   const { maps, currentMap, createNewMap, updateCurrentMap, deleteMapById, setCurrentMap, loading } = useOfficeMap();
-  
-  console.log('MapBuilder - maps count:', maps.length, 'currentMap:', currentMap?.name);
-  
-  // Debug: Force show maps info
-  if (maps.length === 0) {
-    console.log('No maps loaded yet, loading:', loading);
-  }
   const [isCreating, setIsCreating] = useState(false);
   const [showMapsList, setShowMapsList] = useState(false);
   const [selectedTool, setSelectedTool] = useState<'workstation' | 'meeting_room' | 'cubicle' | 'invalid_space'>('workstation');
