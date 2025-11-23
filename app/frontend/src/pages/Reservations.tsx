@@ -974,12 +974,6 @@ const todayReservations = useMemo(() => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('reservations.title')}</h1>
-        <p className="text-gray-600 dark:text-gray-400">{t('reservations.subtitle')}</p>
-      </div>
-
       {/* Controls */}
       <div className="space-y-6">
         {/* Action Buttons Row with Statistics */}
