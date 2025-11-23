@@ -1487,20 +1487,20 @@ const todayReservations = useMemo(() => {
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div 
-            className="flex-1 bg-black bg-opacity-50"
+            className="flex-1 bg-black bg-opacity-30"
             onClick={() => setShowReservationsPanel(false)}
           />
           
-          {/* Panel */}
-          <div className="w-full max-w-md bg-white dark:bg-gray-800 shadow-xl overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+          {/* Panel - Glass effect */}
+          <div className="w-full max-w-md bg-gray-900/80 dark:bg-gray-900/90 backdrop-blur-md shadow-2xl overflow-y-auto border-l border-gray-700/50">
+            <div className="sticky top-0 bg-gray-900/90 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-700/50 p-4 flex items-center justify-between">
+              <h3 className="text-lg font-medium text-white flex items-center">
                 <MapPin className="h-5 w-5 mr-2" />
                 {selectedSpaceReservations.space.name}
               </h3>
               <button
                 onClick={() => setShowReservationsPanel(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="text-gray-300 hover:text-white transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1508,10 +1508,10 @@ const todayReservations = useMemo(() => {
             
             <div className="p-4">
               <div className="mb-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-300">
                   {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   {selectedSpaceReservations.reservations.length} {t('reservations.reservations')} {t('reservations.total')}
                 </p>
               </div>
@@ -1520,34 +1520,34 @@ const todayReservations = useMemo(() => {
                 {selectedSpaceReservations.reservations.map((reservation) => (
                   <div 
                     key={reservation.id} 
-                    className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border-l-4 border-blue-500"
+                    className="bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-lg p-4 border-l-4 border-blue-400 border border-white/10"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                        <Clock className="h-4 w-4 text-gray-300" />
+                        <span className="font-medium text-white">
                           {reservation.start_time} - {reservation.end_time}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 mb-2">
-                      <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                      <User className="h-4 w-4 text-gray-300" />
+                      <span className="text-sm text-gray-200">
                         {reservation.user_name || reservation.user_id}
                       </span>
                     </div>
                     {reservation.notes && (
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                      <div className="text-sm text-gray-300 mt-2">
                         <span className="font-medium">{t('reservations.notes')}:</span> {reservation.notes}
                       </div>
                     )}
-                    <div className="flex items-center space-x-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center space-x-2 mt-3 pt-3 border-t border-white/20">
                       <button
                         onClick={() => {
                           setShowReservationsPanel(false);
                           handleEditReservation(reservation);
                         }}
-                        className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        className="p-2 text-blue-400 hover:text-blue-300 hover:bg-white/10 rounded-lg transition-colors"
                         title={t('reservations.editReservation')}
                       >
                         <Edit className="h-4 w-4" />
@@ -1566,7 +1566,7 @@ const todayReservations = useMemo(() => {
                             });
                           }
                         }}
-                        className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        className="p-2 text-red-400 hover:text-red-300 hover:bg-white/10 rounded-lg transition-colors"
                         title={t('reservations.deleteReservation')}
                       >
                         <Trash2 className="h-4 w-4" />
