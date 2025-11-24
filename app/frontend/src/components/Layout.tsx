@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  LayoutGrid, 
   BookOpen, 
   Settings,
   Building2,
@@ -38,7 +37,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [isPinned]);
 
   const navigation = [
-    { name: t('nav.dashboard'), href: '/dashboard', icon: LayoutGrid },
     { name: t('nav.mapBuilder'), href: '/map-builder', icon: Building2 },
     { name: t('nav.reservations'), href: '/reservations', icon: BookOpen },
   ];
@@ -51,14 +49,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // Get page title based on current route
   const getPageTitle = () => {
-    if (location.pathname === '/dashboard') {
-      return t('nav.dashboard');
-    } else if (location.pathname === '/reservations') {
+    if (location.pathname === '/reservations') {
       return t('nav.reservations');
     } else if (location.pathname === '/map-builder') {
       return t('nav.mapBuilder');
     }
-    return t('nav.dashboard');
+    return t('nav.mapBuilder');
   };
 
   return (
