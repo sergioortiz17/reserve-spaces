@@ -24,6 +24,8 @@ services:
       context: ./app/backend
       dockerfile: Dockerfile
     container_name: office_backend
+    env_file:
+      - ./app/backend/.env
     environment:
       DB_HOST: postgres
       DB_PORT: 5432

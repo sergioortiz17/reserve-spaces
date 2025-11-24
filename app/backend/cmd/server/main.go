@@ -7,6 +7,7 @@ import (
 	"office-reservations/internal/infrastructure/di"
 	"office-reservations/internal/middleware"
 	"os"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -33,9 +34,27 @@ func main() {
 	// Setup Gin router
 	r := gin.Default()
 
-	// CORS middleware
+	// CORS middleware - leer desde variable de entorno
+	corsOrigins := os.Getenv("CORS_ORIGINS")
+	if corsOrigins == "" {
+		// Valores por defecto si no se especifica
+		corsOrigins = "http://localhost:5173,http://localhost:3000,http://0.0.0.0:5173,http://127.0.0.1:5173"
+	}
+	
+	// Parsear los orígenes separados por coma
+	origins := []string{}
+	if corsOrigins != "" {
+		// Dividir por coma y limpiar espacios
+		for _, origin := range strings.Split(corsOrigins, ",") {
+			origin = strings.TrimSpace(origin)
+			if origin != "" {
+				origins = append(origins, origin)
+			}
+		}
+	}
+	
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:5173", "http://localhost:3000", "http://0.0.0.0:5173", "http://127.0.0.1:5173"}
+	config.AllowOrigins = origins
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	config.AllowCredentials = true
