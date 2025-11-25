@@ -38,7 +38,7 @@ func main() {
 	corsOrigins := os.Getenv("CORS_ORIGINS")
 	if corsOrigins == "" {
 		// Valores por defecto si no se especifica
-		corsOrigins = "http://localhost:80,http://localhost:3000,http://0.0.0.0:80,http://127.0.0.1:80"
+		corsOrigins = "http://localhost:2052,http://localhost:3000,http://0.0.0.0:2052,http://127.0.0.1:2052"
 	}
 	
 	// Parsear los orígenes separados por coma
